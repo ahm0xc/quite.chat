@@ -1,0 +1,31 @@
+{
+  "projectName": "chat",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "bun",
+  "includeExamples": false,
+  "tailwind": true,
+  "projectPreset": "default",
+  "addOnOptions": {
+    "drizzle": {
+      "database": "postgresql"
+    }
+  },
+  "git": true,
+  "install": true,
+  "intent": true,
+  "routerOnly": false,
+  "version": 1,
+  "framework": "react",
+  "chosenAddOns": [
+    "eslint",
+    "nitro",
+    "clerk",
+    "compiler",
+    "drizzle",
+    "shadcn",
+    "t3env",
+    "tRPC",
+    "tanstack-query"
+  ]
+}

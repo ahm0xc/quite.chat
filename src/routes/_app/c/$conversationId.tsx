@@ -65,6 +65,7 @@ function ConversationPage() {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          autoComplete="off"
         />
         <Button
           size="icon"
@@ -90,7 +91,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
   const user = details.data?.otherUser;
 
   return (
-    <div className="mb-4 flex items-center gap-3 h-14 border-b px-4">
+    <div className="flex items-center gap-3 h-14 border-b px-4">
       <Link to="/" className="text-muted-foreground hover:text-foreground">
         <CaretLeftIcon className="h-5 w-5" />
       </Link>

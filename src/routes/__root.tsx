@@ -6,6 +6,7 @@ import {
 
 import ClerkProvider from "../integrations/clerk/provider";
 import { ThemeProvider } from "../components/theme-provider";
+import { TooltipProvider } from "../components/ui/tooltip";
 
 import appCss from "../styles.css?url";
 
@@ -52,7 +53,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ThemeProvider defaultTheme="system" storageKey="theme">
-          <ClerkProvider>{children}</ClerkProvider>
+          <ClerkProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ClerkProvider>
         </ThemeProvider>
         <Scripts />
       </body>

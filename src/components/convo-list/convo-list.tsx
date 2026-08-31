@@ -36,13 +36,6 @@ export function ConvoList() {
         <UserButton />
       </div>
 
-      <Link
-        to="/search"
-        className="mt-6 block rounded-md border bg-muted px-4 py-3 text-muted-foreground transition-colors hover:bg-accent"
-      >
-        Search users...
-      </Link>
-
       <div className="mt-6 flex flex-col gap-1">
         {conversations.data?.map((convo) => (
           <Link

@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppCConversationIdRouteImport } from './routes/_app/c/$conversationId'
 import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
 import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
@@ -25,11 +24,6 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSearchRoute = AppSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCConversationIdRoute = AppCConversationIdRouteImport.update({
@@ -60,7 +54,6 @@ const ApiWebhooksClerkRoute = ApiWebhooksClerkRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/search': typeof AppSearchRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
@@ -68,7 +61,6 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
 }
 export interface FileRoutesByTo {
-  '/search': typeof AppSearchRoute
   '/': typeof AppIndexRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
@@ -79,7 +71,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
-  '/_app/search': typeof AppSearchRoute
   '/_app/': typeof AppIndexRoute
   '/_app/c/$conversationId': typeof AppCConversationIdRoute
   '/_auth/sign-in/$': typeof AuthSignInSplatRoute
@@ -91,7 +82,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/search'
     | '/c/$conversationId'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -99,7 +89,6 @@ export interface FileRouteTypes {
     | '/api/webhooks/clerk'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/search'
     | '/'
     | '/c/$conversationId'
     | '/sign-in/$'
@@ -109,7 +98,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
-    | '/_app/search'
     | '/_app/'
     | '/_app/c/$conversationId'
     | '/_auth/sign-in/$'
@@ -140,13 +128,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/search': {
-      id: '/_app/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof AppSearchRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/c/$conversationId': {
@@ -188,13 +169,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppSearchRoute: typeof AppSearchRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCConversationIdRoute: typeof AppCConversationIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppSearchRoute: AppSearchRoute,
   AppIndexRoute: AppIndexRoute,
   AppCConversationIdRoute: AppCConversationIdRoute,
 }

@@ -8,102 +8,121 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
-import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
-import { Route as ApiTrpcSplatRouteImport } from './routes/api.trpc.$'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as AppIndexRouteImport } from "./routes/_app/index";
+import { Route as AuthSignInSplatRouteImport } from "./routes/_auth/sign-in.$";
+import { Route as AuthSignUpSplatRouteImport } from "./routes/_auth/sign-up.$";
+import { Route as ApiTrpcSplatRouteImport } from "./routes/api/trpc/$";
+import { Route as ApiWebhooksClerkRouteImport } from "./routes/api/webhooks/clerk";
 
 const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/_app/',
-  path: '/',
+  id: "/_app/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthSignInSplatRoute = AuthSignInSplatRouteImport.update({
-  id: '/_auth/sign-in/$',
-  path: '/sign-in/$',
+  id: "/_auth/sign-in/$",
+  path: "/sign-in/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthSignUpSplatRoute = AuthSignUpSplatRouteImport.update({
-  id: '/_auth/sign-up/$',
-  path: '/sign-up/$',
+  id: "/_auth/sign-up/$",
+  path: "/sign-up/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
-  id: '/api/trpc/$',
-  path: '/api/trpc/$',
+  id: "/api/trpc/$",
+  path: "/api/trpc/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
+const ApiWebhooksClerkRoute = ApiWebhooksClerkRouteImport.update({
+  id: "/api/webhooks/clerk",
+  path: "/api/webhooks/clerk",
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
-  '/sign-in/$': typeof AuthSignInSplatRoute
-  '/sign-up/$': typeof AuthSignUpSplatRoute
-  '/api/trpc/$': typeof ApiTrpcSplatRoute
+  "/": typeof AppIndexRoute;
+  "/sign-in/$": typeof AuthSignInSplatRoute;
+  "/sign-up/$": typeof AuthSignUpSplatRoute;
+  "/api/trpc/$": typeof ApiTrpcSplatRoute;
+  "/api/webhooks/clerk": typeof ApiWebhooksClerkRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof AppIndexRoute
-  '/sign-in/$': typeof AuthSignInSplatRoute
-  '/sign-up/$': typeof AuthSignUpSplatRoute
-  '/api/trpc/$': typeof ApiTrpcSplatRoute
+  "/": typeof AppIndexRoute;
+  "/sign-in/$": typeof AuthSignInSplatRoute;
+  "/sign-up/$": typeof AuthSignUpSplatRoute;
+  "/api/trpc/$": typeof ApiTrpcSplatRoute;
+  "/api/webhooks/clerk": typeof ApiWebhooksClerkRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/_app/': typeof AppIndexRoute
-  '/_auth/sign-in/$': typeof AuthSignInSplatRoute
-  '/_auth/sign-up/$': typeof AuthSignUpSplatRoute
-  '/api/trpc/$': typeof ApiTrpcSplatRoute
+  __root__: typeof rootRouteImport;
+  "/_app/": typeof AppIndexRoute;
+  "/_auth/sign-in/$": typeof AuthSignInSplatRoute;
+  "/_auth/sign-up/$": typeof AuthSignUpSplatRoute;
+  "/api/trpc/$": typeof ApiTrpcSplatRoute;
+  "/api/webhooks/clerk": typeof ApiWebhooksClerkRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in/$' | '/sign-up/$' | '/api/trpc/$'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sign-in/$' | '/sign-up/$' | '/api/trpc/$'
+  fileRoutesByFullPath: FileRoutesByFullPath;
+  fullPaths:
+    "/" | "/sign-in/$" | "/sign-up/$" | "/api/trpc/$" | "/api/webhooks/clerk";
+  fileRoutesByTo: FileRoutesByTo;
+  to: "/" | "/sign-in/$" | "/sign-up/$" | "/api/trpc/$" | "/api/webhooks/clerk";
   id:
-    | '__root__'
-    | '/_app/'
-    | '/_auth/sign-in/$'
-    | '/_auth/sign-up/$'
-    | '/api/trpc/$'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/_app/"
+    | "/_auth/sign-in/$"
+    | "/_auth/sign-up/$"
+    | "/api/trpc/$"
+    | "/api/webhooks/clerk";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  AppIndexRoute: typeof AppIndexRoute
-  AuthSignInSplatRoute: typeof AuthSignInSplatRoute
-  AuthSignUpSplatRoute: typeof AuthSignUpSplatRoute
-  ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
+  AppIndexRoute: typeof AppIndexRoute;
+  AuthSignInSplatRoute: typeof AuthSignInSplatRoute;
+  AuthSignUpSplatRoute: typeof AuthSignUpSplatRoute;
+  ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute;
+  ApiWebhooksClerkRoute: typeof ApiWebhooksClerkRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/_app/': {
-      id: '/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_auth/sign-in/$': {
-      id: '/_auth/sign-in/$'
-      path: '/sign-in/$'
-      fullPath: '/sign-in/$'
-      preLoaderRoute: typeof AuthSignInSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_auth/sign-up/$': {
-      id: '/_auth/sign-up/$'
-      path: '/sign-up/$'
-      fullPath: '/sign-up/$'
-      preLoaderRoute: typeof AuthSignUpSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/trpc/$': {
-      id: '/api/trpc/$'
-      path: '/api/trpc/$'
-      fullPath: '/api/trpc/$'
-      preLoaderRoute: typeof ApiTrpcSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    "/_app/": {
+      id: "/_app/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof AppIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_auth/sign-in/$": {
+      id: "/_auth/sign-in/$";
+      path: "/sign-in/$";
+      fullPath: "/sign-in/$";
+      preLoaderRoute: typeof AuthSignInSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/_auth/sign-up/$": {
+      id: "/_auth/sign-up/$";
+      path: "/sign-up/$";
+      fullPath: "/sign-up/$";
+      preLoaderRoute: typeof AuthSignUpSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/trpc/$": {
+      id: "/api/trpc/$";
+      path: "/api/trpc/$";
+      fullPath: "/api/trpc/$";
+      preLoaderRoute: typeof ApiTrpcSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/webhooks/clerk": {
+      id: "/api/webhooks/clerk";
+      path: "/api/webhooks/clerk";
+      fullPath: "/api/webhooks/clerk";
+      preLoaderRoute: typeof ApiWebhooksClerkRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -112,17 +131,18 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignInSplatRoute: AuthSignInSplatRoute,
   AuthSignUpSplatRoute: AuthSignUpSplatRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
-}
+  ApiWebhooksClerkRoute: ApiWebhooksClerkRoute,
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+import type { startInstance } from "./start.ts";
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
   }
 }

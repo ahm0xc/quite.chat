@@ -19,20 +19,35 @@ export const conversationMemberRole = pgEnum("conversation_member_role", [
   "member",
 ]);
 
+export const users = pgTable(
+  "users",
+  {
+    id: serial().primaryKey(),
+    clerkUserId: text("clerk_user_id").notNull(),
+    username: text(),
+    displayName: text("display_name"),
+    avatarUrl: text("avatar_url"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [unique("users_clerk_user_id_unique").on(table.clerkUserId)],
+);
+
 export const conversations = pgTable(
   "conversations",
   {
     id: serial().primaryKey(),
     type: conversationType().notNull(),
     title: text(),
-    createdByClerkUserId: text("created_by_clerk_user_id").notNull(),
+    createdBy: integer("created_by")
+      .notNull()
+      .references(() => users.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     deletedAt: timestamp("deleted_at"),
   },
-  (table) => [
-    index("conversations_created_by_idx").on(table.createdByClerkUserId),
-  ],
+  (table) => [index("conversations_created_by_idx").on(table.createdBy)],
 );
 
 export const conversationMembers = pgTable(
@@ -41,7 +56,9 @@ export const conversationMembers = pgTable(
     conversationId: integer("conversation_id")
       .notNull()
       .references(() => conversations.id, { onDelete: "cascade" }),
-    clerkUserId: text("clerk_user_id").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     role: conversationMemberRole().notNull().default("member"),
     joinedAt: timestamp("joined_at").defaultNow().notNull(),
     lastReadMessageId: integer("last_read_message_id"),
@@ -50,9 +67,9 @@ export const conversationMembers = pgTable(
   (table) => [
     unique("conversation_members_conversation_user_unique").on(
       table.conversationId,
-      table.clerkUserId,
+      table.userId,
     ),
-    index("conversation_members_user_idx").on(table.clerkUserId),
+    index("conversation_members_user_idx").on(table.userId),
     index("conversation_members_conversation_idx").on(table.conversationId),
   ],
 );
@@ -64,7 +81,9 @@ export const messages = pgTable(
     conversationId: integer("conversation_id")
       .notNull()
       .references(() => conversations.id, { onDelete: "cascade" }),
-    senderClerkUserId: text("sender_clerk_user_id").notNull(),
+    senderId: integer("sender_id")
+      .notNull()
+      .references(() => users.id),
     body: text().notNull(),
     replyToMessageId: integer("reply_to_message_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -87,14 +106,16 @@ export const messageReactions = pgTable(
     messageId: integer("message_id")
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
-    clerkUserId: text("clerk_user_id").notNull(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     emoji: text().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     unique("message_reactions_message_user_emoji_unique").on(
       table.messageId,
-      table.clerkUserId,
+      table.userId,
       table.emoji,
     ),
     index("message_reactions_message_idx").on(table.messageId),

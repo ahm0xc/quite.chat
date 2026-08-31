@@ -9,14 +9,22 @@ function formatTime(date: Date | string | null) {
   if (!date) return "";
   const d = new Date(date);
   const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d ago`;
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const diffMs = startOfToday.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffDays <= 0) {
+    return d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays} days ago`;
 }
 
 function HomePage() {
@@ -45,9 +53,17 @@ function HomePage() {
             params={{ conversationId: String(convo.id) }}
             className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
-              {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
-            </div>
+            {convo.otherUser?.avatarUrl ? (
+              <img
+                src={convo.otherUser.avatarUrl}
+                alt=""
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <span className="truncate text-sm font-medium">

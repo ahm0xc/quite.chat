@@ -9,12 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
+import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api.trpc.$'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/_app/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignInSplatRoute = AuthSignInSplatRouteImport.update({
+  id: '/_auth/sign-in/$',
+  path: '/sign-in/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignUpSplatRoute = AuthSignUpSplatRouteImport.update({
+  id: '/_auth/sign-up/$',
+  path: '/sign-up/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
@@ -24,38 +36,65 @@ const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/sign-in/$': typeof AuthSignInSplatRoute
+  '/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/sign-in/$': typeof AuthSignInSplatRoute
+  '/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app/': typeof AppIndexRoute
+  '/_auth/sign-in/$': typeof AuthSignInSplatRoute
+  '/_auth/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/trpc/$'
+  fullPaths: '/' | '/sign-in/$' | '/sign-up/$' | '/api/trpc/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/trpc/$'
-  id: '__root__' | '/' | '/api/trpc/$'
+  to: '/' | '/sign-in/$' | '/sign-up/$' | '/api/trpc/$'
+  id:
+    | '__root__'
+    | '/_app/'
+    | '/_auth/sign-in/$'
+    | '/_auth/sign-up/$'
+    | '/api/trpc/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AuthSignInSplatRoute: typeof AuthSignInSplatRoute
+  AuthSignUpSplatRoute: typeof AuthSignUpSplatRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth/sign-in/$': {
+      id: '/_auth/sign-in/$'
+      path: '/sign-in/$'
+      fullPath: '/sign-in/$'
+      preLoaderRoute: typeof AuthSignInSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth/sign-up/$': {
+      id: '/_auth/sign-up/$'
+      path: '/sign-up/$'
+      fullPath: '/sign-up/$'
+      preLoaderRoute: typeof AuthSignUpSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/trpc/$': {
@@ -69,7 +108,9 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppIndexRoute: AppIndexRoute,
+  AuthSignInSplatRoute: AuthSignInSplatRoute,
+  AuthSignUpSplatRoute: AuthSignUpSplatRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
 }
 export const routeTree = rootRouteImport

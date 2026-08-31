@@ -9,6 +9,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
 const config = defineConfig({
+  server: {
+    allowedHosts: ["macbook.donkey-powan.ts.net"],
+  },
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),

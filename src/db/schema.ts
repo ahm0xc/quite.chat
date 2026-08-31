@@ -27,9 +27,10 @@ export const users = pgTable(
     username: text(),
     displayName: text("display_name"),
     avatarUrl: text("avatar_url"),
+
+    deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    deletedAt: timestamp("deleted_at"),
   },
   (table) => [unique("users_clerk_user_id_unique").on(table.clerkUserId)],
 );

@@ -1,3 +1,3 @@
 - use bun as package manager
 - After any implementation or changes run bun run lint and bun run fmt to format them and lint them. if there is any issue then fix them.
-- When generating database migrations, use descriptive names: `bun run db:generate -- --name <descriptive_name>`. Never use auto-generated names.
+- When generating database migrations, use descriptive names: `bun run db:generate --name <descriptive_name>`. Never use auto-generated names.

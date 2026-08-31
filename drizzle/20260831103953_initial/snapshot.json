@@ -2,25 +2,16 @@
   "version": "8",
   "dialect": "postgres",
   "id": "8026baeb-1434-4a14-a431-431147a71a00",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
-      "values": [
-        "owner",
-        "admin",
-        "member"
-      ],
+      "values": ["owner", "admin", "member"],
       "name": "conversation_member_role",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "direct",
-        "group"
-      ],
+      "values": ["direct", "group"],
       "name": "conversation_type",
       "entityType": "enums",
       "schema": "public"
@@ -626,14 +617,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "conversation_id"
-      ],
+      "columns": ["conversation_id"],
       "schemaTo": "public",
       "tableTo": "conversations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "conversation_members_conversation_id_conversations_id_fkey",
@@ -643,14 +630,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "conversation_members_user_id_users_id_fkey",
@@ -660,14 +643,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "conversations_created_by_users_id_fkey",
@@ -677,14 +656,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "message_id"
-      ],
+      "columns": ["message_id"],
       "schemaTo": "public",
       "tableTo": "messages",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "message_reactions_message_id_messages_id_fkey",
@@ -694,14 +669,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "message_reactions_user_id_users_id_fkey",
@@ -711,14 +682,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "conversation_id"
-      ],
+      "columns": ["conversation_id"],
       "schemaTo": "public",
       "tableTo": "conversations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "messages_conversation_id_conversations_id_fkey",
@@ -728,14 +695,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "sender_id"
-      ],
+      "columns": ["sender_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "messages_sender_id_users_id_fkey",
@@ -744,9 +707,7 @@
       "table": "messages"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "conversations_pkey",
       "schema": "public",
@@ -754,9 +715,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "messages_pkey",
       "schema": "public",
@@ -764,9 +723,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "public",
@@ -775,10 +732,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "conversation_id",
-        "user_id"
-      ],
+      "columns": ["conversation_id", "user_id"],
       "nullsNotDistinct": false,
       "name": "conversation_members_conversation_user_unique",
       "entityType": "uniques",
@@ -787,11 +741,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "message_id",
-        "user_id",
-        "emoji"
-      ],
+      "columns": ["message_id", "user_id", "emoji"],
       "nullsNotDistinct": false,
       "name": "message_reactions_message_user_emoji_unique",
       "entityType": "uniques",
@@ -800,9 +750,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "clerk_user_id"
-      ],
+      "columns": ["clerk_user_id"],
       "nullsNotDistinct": false,
       "name": "users_clerk_user_id_unique",
       "entityType": "uniques",

@@ -10,7 +10,10 @@ import { nitro } from "nitro/vite";
 
 const config = defineConfig({
   server: {
-    allowedHosts: ["macbook.donkey-powan.ts.net"],
+    allowedHosts: [
+      "macbook.donkey-powan.ts.net",
+      "8db6-37-111-229-99.ngrok-free.app",
+    ],
   },
   resolve: { tsconfigPaths: true },
   plugins: [

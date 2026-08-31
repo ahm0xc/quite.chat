@@ -154,7 +154,7 @@ export const conversationsRouter = {
 
   messages: protectedProcedure
     .input(z.object({ conversationId: z.number() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       return db
         .select({
           id: messages.id,

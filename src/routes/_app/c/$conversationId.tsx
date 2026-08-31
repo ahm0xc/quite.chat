@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "~/integrations/trpc/react";
+import { ChatBubble } from "~/components/chat-bubble";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 
@@ -54,10 +55,7 @@ function ConversationPage() {
 
       <ul className="mb-4 flex-1 space-y-2 overflow-y-auto">
         {messages.data?.map((msg) => (
-          <li key={msg.id} className="text-sm">
-            <span className="font-medium">{msg.username}: </span>
-            {msg.body}
-          </li>
+          <ChatBubble key={msg.id} message={msg} />
         ))}
       </ul>
 

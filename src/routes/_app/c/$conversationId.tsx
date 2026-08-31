@@ -5,6 +5,9 @@ import { useTRPC } from "~/integrations/trpc/react";
 import { ChatBubble } from "~/components/chat-bubble";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
+import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
+import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
@@ -12,12 +15,13 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 
 function ConversationPage() {
   const { conversationId } = Route.useParams();
-  const convoId = Number(conversationId);
+  const [body, setBody] = useState("");
+
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const [body, setBody] = useState("");
-
+  const me = useQuery(trpc.users.me.queryOptions());
+  const convoId = Number(conversationId);
   const messages = useQuery(
     trpc.conversations.messages.queryOptions({ conversationId: convoId }),
   );
@@ -40,36 +44,70 @@ function ConversationPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col p-4">
-      <div className="mb-4 flex items-center gap-2">
-        <Link
-          to="/"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Back
-        </Link>
-        <h1 className="font-heading text-lg font-semibold">
-          Conversation {conversationId}
-        </h1>
-      </div>
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <ConvoHeader conversationId={conversationId} />
 
-      <ul className="mb-4 flex-1 space-y-2 overflow-y-auto">
+      <ul className="flex-1 min-h-0 flex flex-col w-full gap-8 overflow-y-scroll py-12">
         {messages.data?.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} />
+          <ChatBubble
+            key={msg.id}
+            message={msg}
+            isOwnMessage={me.data?.id === msg.senderId}
+            className={cn("", me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
+          />
         ))}
       </ul>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 p-4 border-t">
         <Input
           placeholder="Type a message..."
+          className="h-10"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-        <Button onClick={handleSend} disabled={send.isPending || !body.trim()}>
-          Send
+        <Button
+          size="icon"
+          className="h-10 w-10"
+          onClick={handleSend}
+          disabled={send.isPending || !body.trim()}
+        >
+          <ArrowUpIcon />
         </Button>
       </div>
+    </div>
+  );
+}
+
+function ConvoHeader({ conversationId }: { conversationId: string }) {
+  const trpc = useTRPC();
+  const details = useQuery(
+    trpc.conversations.details.queryOptions({
+      conversationId: Number(conversationId),
+    }),
+  );
+
+  const user = details.data?.otherUser;
+
+  return (
+    <div className="mb-4 flex items-center gap-3 h-14 border-b px-4">
+      <Link to="/" className="text-muted-foreground hover:text-foreground">
+        <CaretLeftIcon className="h-5 w-5" />
+      </Link>
+      {user?.avatarUrl ? (
+        <img
+          src={user.avatarUrl}
+          alt=""
+          className="h-8 w-8 rounded-full object-cover"
+        />
+      ) : (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
+          {user?.username?.[0]?.toUpperCase() ?? "?"}
+        </div>
+      )}
+      <h1 className="text-sm font-medium">
+        {user?.displayName ?? user?.username ?? "Unknown"}
+      </h1>
     </div>
   );
 }

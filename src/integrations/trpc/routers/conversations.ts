@@ -99,6 +99,37 @@ export const conversationsRouter = {
       });
   }),
 
+  details: protectedProcedure
+    .input(z.object({ conversationId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const members = await db
+        .select({
+          userId: conversationMembers.userId,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(conversationMembers)
+        .innerJoin(users, eq(conversationMembers.userId, users.id))
+        .where(
+          and(
+            eq(conversationMembers.conversationId, input.conversationId),
+            isNull(conversationMembers.leftAt),
+          ),
+        );
+
+      const otherMember = members.find((m) => m.userId !== ctx.userId);
+      return {
+        otherUser: otherMember
+          ? {
+              username: otherMember.username,
+              displayName: otherMember.displayName,
+              avatarUrl: otherMember.avatarUrl,
+            }
+          : null,
+      };
+    }),
+
   getOrCreate: protectedProcedure
     .input(z.object({ targetUserId: z.number() }))
     .mutation(async ({ ctx, input }) => {

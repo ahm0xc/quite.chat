@@ -29,7 +29,7 @@ function Layout() {
 
   return (
     <ResizablePanelGroup orientation="horizontal">
-      <ResizablePanel defaultSize="400px" minSize="300px">
+      <ResizablePanel defaultSize="25rem" minSize="18rem" maxSize="25rem">
         <ConvoList />
       </ResizablePanel>
       <ResizableHandle />

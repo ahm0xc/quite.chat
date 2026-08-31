@@ -1,12 +1,25 @@
 import type { RouterOutputs } from "~/integrations/trpc/router";
+import { Bubble, BubbleContent } from "~/components/ui/bubble";
+import { cn } from "~/lib/utils";
 
 export type Message = RouterOutputs["conversations"]["messages"][number];
 
-export function ChatBubble({ message }: { message: Message }) {
+export function ChatBubble({
+  message,
+  isOwnMessage,
+  className,
+}: {
+  message: Message;
+  isOwnMessage: boolean;
+  className?: string;
+}) {
   return (
-    <li className="text-sm">
-      <span className="font-medium">{message.username}: </span>
-      {message.body}
-    </li>
+    <Bubble
+      align={isOwnMessage ? "end" : "start"}
+      variant={isOwnMessage ? "default" : "secondary"}
+      className={cn(className)}
+    >
+      <BubbleContent>{message.body}</BubbleContent>
+    </Bubble>
   );
 }

@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 
 import ClerkProvider from "../integrations/clerk/provider";
+import { ThemeProvider } from "../components/theme-provider";
 
 import appCss from "../styles.css?url";
 
@@ -45,12 +46,14 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body>
-        <ClerkProvider>{children}</ClerkProvider>
+        <ThemeProvider defaultTheme="system" storageKey="theme">
+          <ClerkProvider>{children}</ClerkProvider>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

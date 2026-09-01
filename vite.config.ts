@@ -1,14 +1,28 @@
-import { defineConfig, lazyPlugins } from "vite-plus";
-import { devtools } from "@tanstack/devtools-vite";
-
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-
-import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
 
 const config = defineConfig({
+  server: {
+    allowedHosts: [
+      "macbook.donkey-powan.ts.net",
+      "8db6-37-111-229-99.ngrok-free.app",
+    ],
+  },
+  resolve: { tsconfigPaths: true },
+  plugins: lazyPlugins(() => [
+    devtools(),
+    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+    babel({ presets: [reactCompilerPreset()] }),
+  ]),
+  // Vite plus specific config
   staged: {
     "*": "vp check --fix",
   },
@@ -31,6 +45,9 @@ const config = defineConfig({
       "**/coverage/**",
       "**/dist/**",
       "**/snap/**",
+      "**/.output/**",
+      "**/.vscode/**",
+      "**/routeTree.gen.ts",
       "**/vite.config.*.timestamp-*.*",
       "eslint.config.js",
       "prettier.config.js",
@@ -256,23 +273,18 @@ const config = defineConfig({
     trailingComma: "all",
     printWidth: 80,
     sortPackageJson: false,
-    ignorePatterns: ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"],
-  },
-  server: {
-    allowedHosts: [
-      "macbook.donkey-powan.ts.net",
-      "8db6-37-111-229-99.ngrok-free.app",
+    sortImports: true,
+    sortTailwindcss: true,
+    tabWidth: 2,
+    ignorePatterns: [
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "**/.output/**",
+      "**/.vscode/**",
+      "**/routeTree.gen.ts",
     ],
   },
-  resolve: { tsconfigPaths: true },
-  plugins: lazyPlugins(() => [
-    devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
-    tailwindcss(),
-    tanstackStart(),
-    viteReact(),
-    babel({ presets: [reactCompilerPreset()] }),
-  ]),
 });
 
 export default config;

@@ -1,9 +1,35 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { UserButton } from "@clerk/tanstack-react-start";
-import { QrCodeIcon } from "@phosphor-icons/react";
+import { useClerk, useUser } from "@clerk/tanstack-react-start";
+import * as React from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { QrCodeIcon } from "@phosphor-icons/react/dist/csr/QrCode";
 import { Button } from "~/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { useTRPC } from "~/integrations/trpc/react";
+import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
+import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
+import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
+import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
+import { useTheme } from "~/components/theme-provider";
 
 function formatTime(date: Date | string | null) {
   if (!date) return "";
@@ -28,20 +54,86 @@ function formatTime(date: Date | string | null) {
 }
 
 export function ConvoList() {
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const trpc = useTRPC();
   const conversations = useQuery(trpc.conversations.list.queryOptions());
+  const { setTheme, theme } = useTheme();
+  const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
 
   return (
     <div className="flex min-h-dvh flex-col p-4">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Chat</h1>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="icon" aria-label="QR code">
+          <Button variant="outline" size="icon" aria-label="QR code">
             <QrCodeIcon />
           </Button>
-          <UserButton />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<button />}>
+              {user ? (
+                <img
+                  src={user.imageUrl}
+                  className="h-8 w-8 rounded-full border-2"
+                />
+              ) : (
+                <div className="size-10 rounded-full border-2 bg-muted animate-pulse" />
+              )}
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  {theme === "light" && <SunIcon />}
+                  {theme === "dark" && <MoonIcon />}
+                  {theme === "system" && <MonitorIcon />}
+                  Theme
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => setTheme("light")}>
+                    <SunIcon />
+                    Light
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("dark")}>
+                    <MoonIcon />
+                    Dark
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("system")}>
+                    <MonitorIcon />
+                    System
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setLogoutDialogOpen(true)}
+              >
+                <SignOutIcon />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to log out?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => signOut()}>
+              Log out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="mt-6 flex flex-col gap-1">
         {conversations.data?.map((convo) => (
@@ -64,7 +156,7 @@ export function ConvoList() {
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-medium">
+                <span className="truncate text-sm font-medium font-heading">
                   {convo.otherUser?.displayName ??
                     convo.otherUser?.username ??
                     "Unknown"}

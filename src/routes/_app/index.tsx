@@ -9,7 +9,12 @@ export const Route = createFileRoute("/_app/")({
 function RouteComponent() {
   const isMobile = useIsMobile();
 
-  if (!isMobile) return null;
+  if (!isMobile)
+    return (
+      <div className="h-dvh flex justify-center items-center">
+        <p className="text-muted-foreground">Start a conversation</p>
+      </div>
+    );
 
   return (
     <div>

@@ -27,6 +27,6 @@ const clientEnv = clientSchema.parse({
 const serverEnv = isClient ? undefined : serverSchema.parse(process.env);
 
 export const env = {
-  ...(serverEnv ?? {}),
+  ...serverEnv,
   ...clientEnv,
 } as z.infer<typeof serverSchema> & z.infer<typeof clientSchema>;

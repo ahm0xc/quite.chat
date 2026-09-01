@@ -17,9 +17,12 @@ export const Route = createFileRoute("/api/pusher/auth")({
         const form = await request.formData();
         const socketId = form.get("socket_id");
         const channelName = form.get("channel_name");
-        const conversationId = channelName
-          ?.toString()
-          .match(/^private-conversation-(\d+)$/)?.[1];
+        if (typeof channelName !== "string") {
+          return new Response("Bad request", { status: 400 });
+        }
+        const conversationId = channelName.match(
+          /^private-conversation-(\d+)$/,
+        )?.[1];
 
         if (typeof socketId !== "string" || !conversationId) {
           return new Response("Bad request", { status: 400 });
@@ -43,7 +46,7 @@ export const Route = createFileRoute("/api/pusher/auth")({
         if (!member[0]) return new Response("Forbidden", { status: 403 });
 
         return Response.json(
-          pusherServer.authorizeChannel(socketId, channelName.toString()),
+          pusherServer.authorizeChannel(socketId, channelName),
         );
       },
     },

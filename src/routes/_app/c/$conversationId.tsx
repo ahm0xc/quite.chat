@@ -50,7 +50,9 @@ function ConversationPage() {
             return current;
           },
         );
-        queryClient.invalidateQueries(trpc.conversations.list.queryOptions());
+        void queryClient.invalidateQueries(
+          trpc.conversations.list.queryOptions(),
+        );
       },
       onError: (_error, variables) => {
         setOptimisticMessages((current) =>

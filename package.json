@@ -3,20 +3,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3441 --host",
+    "dev": "vp dev --port 3441 --host",
     "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint && tsc --noEmit",
+    "build": "vp build",
+    "preview": "vp preview",
+    "lint": "vp lint && tsc --noEmit",
     "check-types": "tsc --noEmit",
-    "fmt": "prettier --write . && eslint --fix",
-    "fmt:check": "prettier --check .",
+    "fmt": "vp fmt . && vp lint --fix",
+    "fmt:check": "vp fmt --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "bun run scripts/db-reset.ts"
+    "db:reset": "bun run scripts/db-reset.ts",
+    "prepare": "vp config"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
@@ -57,7 +58,6 @@
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
-    "@tanstack/eslint-config": "latest",
     "@tanstack/router-cli": "^1.132.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.15.6",
@@ -67,11 +67,20 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^1.0.0-rc.4",
-    "eslint": "^9.20.0",
     "pg": "^8.16.3",
-    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
-    "vite": "^8.0.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.0",
+    "vite-plus": "0.3.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.0",
+      "onFail": "download"
+    }
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.0"
   }
 }

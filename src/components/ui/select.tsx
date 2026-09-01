@@ -1,8 +1,8 @@
-import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
+import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react";
+import * as React from "react";
 
 import { cn } from "~/lib/utils";
-import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react";
 
 const Select = SelectPrimitive.Root;
 
@@ -47,7 +47,7 @@ function SelectTrigger({
       {children}
       <SelectPrimitive.Icon
         render={
-          <CaretDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+          <CaretDownIcon className="text-muted-foreground pointer-events-none size-4" />
         }
       />
     </SelectPrimitive.Trigger>

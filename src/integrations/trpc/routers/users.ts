@@ -1,9 +1,10 @@
+import type { TRPCRouterRecord } from "@trpc/server";
 import { eq } from "drizzle-orm";
-import { protectedProcedure } from "../init";
+
 import { db } from "~/db";
 import { users } from "~/db/schema";
 
-import type { TRPCRouterRecord } from "@trpc/server";
+import { protectedProcedure } from "../init";
 
 export const usersRouter = {
   me: protectedProcedure.query(async ({ ctx }) => {

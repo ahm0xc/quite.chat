@@ -1,19 +1,18 @@
+import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
 } from "@tanstack/react-router";
-
-import ClerkProvider from "../integrations/clerk/provider";
-import { ThemeProvider } from "../components/theme-provider";
-import { TooltipProvider } from "../components/ui/tooltip";
-
-import appCss from "../styles.css?url";
-
-import type { QueryClient } from "@tanstack/react-query";
+import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import type { TRPCRouter } from "~/integrations/trpc/router";
-import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+
+import { ThemeProvider } from "../components/theme-provider";
+import { TooltipProvider } from "../components/ui/tooltip";
+import ClerkProvider from "../integrations/clerk/provider";
+
+import appCss from "../styles.css?url";
 
 interface MyRouterContext {
   queryClient: QueryClient;

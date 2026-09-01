@@ -1,17 +1,18 @@
-import { useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "~/integrations/trpc/react";
-import { ChatBubble } from "~/components/chat-bubble";
-import type { UIMessage } from "~/components/chat-bubble";
-import { Input } from "~/components/ui/input";
-import { Button } from "~/components/ui/button";
+import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
 import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
-import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
-import { cn } from "~/lib/utils";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+
+import { ChatBubble } from "~/components/chat-bubble";
+import type { UIMessage } from "~/components/chat-bubble";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
+import { useTRPC } from "~/integrations/trpc/react";
+import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
@@ -20,7 +21,9 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 function ConversationPage() {
   const { conversationId } = Route.useParams();
   const [body, setBody] = useState("");
-  const [optimisticMessages, setOptimisticMessages] = useState<UIMessage[]>([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    Array<UIMessage>
+  >([]);
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -145,7 +148,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
   const user = details.data?.otherUser;
 
   return (
-    <div className="flex items-center gap-3 h-14 border-b px-4">
+    <div className="flex h-14 items-center gap-3 border-b px-4">
       <Link to="/" className="text-muted-foreground hover:text-foreground">
         <CaretLeftIcon className="h-5 w-5" />
       </Link>
@@ -156,7 +159,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
           className="h-8 w-8 rounded-full object-cover"
         />
       ) : (
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
+        <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">
           {user?.username?.[0]?.toUpperCase() ?? "?"}
         </div>
       )}

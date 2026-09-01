@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "@clerk/tanstack-react-start/server";
+import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, isNull } from "drizzle-orm";
+
 import { db } from "~/db";
 import { conversationMembers, users } from "~/db/schema";
 import { pusherServer } from "~/lib/pusher-server";

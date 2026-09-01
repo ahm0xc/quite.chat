@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
 import { createFileRoute } from "@tanstack/react-router";
+import { eq } from "drizzle-orm";
 import { Webhook } from "svix";
+
 import { db } from "~/db";
 import { users } from "~/db/schema";
 import { env } from "~/env";

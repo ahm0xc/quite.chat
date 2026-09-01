@@ -1,16 +1,17 @@
-import { z } from "zod";
+import type { TRPCRouterRecord } from "@trpc/server";
 import { eq, and, desc, isNull, sql } from "drizzle-orm";
-import { protectedProcedure } from "../init";
+import { z } from "zod";
+
 import { db } from "~/db";
-import { pusherServer } from "~/lib/pusher-server";
 import {
   users,
   conversations,
   conversationMembers,
   messages,
 } from "~/db/schema";
+import { pusherServer } from "~/lib/pusher-server";
 
-import type { TRPCRouterRecord } from "@trpc/server";
+import { protectedProcedure } from "../init";
 
 export const conversationsRouter = {
   list: protectedProcedure.query(async ({ ctx }) => {

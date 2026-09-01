@@ -1,13 +1,13 @@
+import { auth } from "@clerk/tanstack-react-start/server";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { auth } from "@clerk/tanstack-react-start/server";
 
+import { ConvoList } from "~/components/convo-list";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "~/components/ui/resizable";
-import { ConvoList } from "~/components/convo-list";
 import { useIsMobile } from "~/hooks/use-mobile";
 
 const requireAuth = createServerFn().handler(async () => {

@@ -1,6 +1,7 @@
-import { useEffect } from "react";
-import Pusher from "pusher-js";
 import { useQueryClient } from "@tanstack/react-query";
+import Pusher from "pusher-js";
+import { useEffect } from "react";
+
 import { env } from "~/env";
 import { useTRPC } from "~/integrations/trpc/react";
 

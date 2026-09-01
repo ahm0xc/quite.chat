@@ -1,5 +1,5 @@
-import type { RouterOutputs } from "~/integrations/trpc/router";
 import { Bubble, BubbleContent } from "~/components/ui/bubble";
+import type { RouterOutputs } from "~/integrations/trpc/router";
 import { cn } from "~/lib/utils";
 
 export type Message = RouterOutputs["conversations"]["messages"][number];
@@ -26,7 +26,7 @@ export function ChatBubble({
       <BubbleContent>
         {message.body}
         {message.status === "failed" && (
-          <span className="ml-2 text-xs text-destructive">Failed</span>
+          <span className="text-destructive ml-2 text-xs">Failed</span>
         )}
       </BubbleContent>
     </Bubble>

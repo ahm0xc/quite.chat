@@ -1,4 +1,5 @@
 import Pusher from "pusher";
+
 import { env } from "~/env";
 
 export const pusherServer = new Pusher({

@@ -1,7 +1,8 @@
 import { auth } from "@clerk/tanstack-react-start/server";
-import { eq } from "drizzle-orm";
 import { initTRPC, TRPCError } from "@trpc/server";
+import { eq } from "drizzle-orm";
 import superjson from "superjson";
+
 import { db } from "~/db";
 import { users } from "~/db/schema";
 

@@ -1,19 +1,14 @@
-import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/tanstack-react-start";
-import * as React from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
+import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
 import { QrCodeIcon } from "@phosphor-icons/react/dist/csr/QrCode";
-import { Button } from "~/components/ui/button";
+import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
+import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import * as React from "react";
+
+import { useTheme } from "~/components/theme-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,12 +19,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { useTRPC } from "~/integrations/trpc/react";
-import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
-import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
-import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
-import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
-import { useTheme } from "~/components/theme-provider";
 
 function formatTime(date: Date | string | null) {
   if (!date) return "";
@@ -78,7 +79,7 @@ export function ConvoList() {
                   className="h-8 w-8 rounded-full border-2"
                 />
               ) : (
-                <div className="size-10 rounded-full border-2 bg-muted animate-pulse" />
+                <div className="bg-muted size-10 animate-pulse rounded-full border-2" />
               )}
             </DropdownMenuTrigger>
 
@@ -141,7 +142,7 @@ export function ConvoList() {
             key={convo.id}
             to="/c/$conversationId"
             params={{ conversationId: String(convo.id) }}
-            className="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent"
+            className="hover:bg-accent flex items-center gap-3 rounded-md px-3 py-2 transition-colors"
           >
             {convo.otherUser?.avatarUrl ? (
               <img
@@ -150,25 +151,25 @@ export function ConvoList() {
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
+              <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
                 {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-medium font-heading">
+                <span className="font-heading truncate text-sm font-medium">
                   {convo.otherUser?.displayName ??
                     convo.otherUser?.username ??
                     "Unknown"}
                 </span>
                 {convo.lastMessage && (
-                  <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                  <span className="text-muted-foreground ml-2 shrink-0 text-xs">
                     {formatTime(convo.lastMessage.createdAt)}
                   </span>
                 )}
               </div>
               {convo.lastMessage && (
-                <p className="truncate text-sm text-muted-foreground">
+                <p className="text-muted-foreground truncate text-sm">
                   {convo.lastMessage.body}
                 </p>
               )}
@@ -176,7 +177,7 @@ export function ConvoList() {
           </Link>
         ))}
         {conversations.data?.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="text-muted-foreground py-8 text-center text-sm">
             No conversations yet. Search for users to start chatting.
           </p>
         )}

@@ -1,8 +1,8 @@
+import type { TRPCRouterRecord, inferRouterOutputs } from "@trpc/server";
+
 import { createTRPCRouter } from "./init";
 import { conversationsRouter } from "./routers/conversations";
 import { usersRouter } from "./routers/users";
-
-import type { TRPCRouterRecord, inferRouterOutputs } from "@trpc/server";
 
 export const trpcRouter = createTRPCRouter({
   conversations: conversationsRouter,

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+
 import { ConvoList } from "~/components/convo-list";
 import { useIsMobile } from "~/hooks/use-mobile";
 
@@ -11,7 +12,7 @@ function RouteComponent() {
 
   if (!isMobile)
     return (
-      <div className="h-dvh flex justify-center items-center">
+      <div className="flex h-dvh items-center justify-center">
         <p className="text-muted-foreground">Start a conversation</p>
       </div>
     );

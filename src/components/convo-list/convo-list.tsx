@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { UserButton } from "@clerk/tanstack-react-start";
-import { QrCode } from "lucide-react";
+import { QrCodeIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import { useTRPC } from "~/integrations/trpc/react";
 
@@ -37,7 +37,7 @@ export function ConvoList() {
         <h1 className="font-heading text-2xl font-bold">Chat</h1>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="icon" aria-label="QR code">
-            <QrCode />
+            <QrCodeIcon />
           </Button>
           <UserButton />
         </div>

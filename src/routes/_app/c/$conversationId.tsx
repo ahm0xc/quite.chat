@@ -8,8 +8,10 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
+import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
 import { cn } from "~/lib/utils";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
+import { useMessageScroll } from "~/hooks/use-message-scroll";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
@@ -76,12 +78,19 @@ function ConversationPage() {
     setBody("");
   };
 
+  const renderedMessages = [...(messages.data ?? []), ...optimisticMessages];
+  const { hasNewMessages, messagesEndRef, messagesListRef, scrollToLatest } =
+    useMessageScroll(renderedMessages.length);
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <ConvoHeader conversationId={conversationId} />
 
-      <ul className="flex-1 min-h-0 flex flex-col w-full gap-8 overflow-y-scroll py-12">
-        {[...(messages.data ?? []), ...optimisticMessages].map((msg) => (
+      <ul
+        ref={messagesListRef}
+        className="relative flex min-h-0 w-full flex-1 flex-col gap-8 overflow-y-scroll pt-12 pb-6"
+      >
+        {renderedMessages.map((msg) => (
           <ChatBubble
             key={msg.id}
             message={msg}
@@ -89,9 +98,21 @@ function ConversationPage() {
             className={cn("", me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
           />
         ))}
+        <li ref={messagesEndRef} aria-hidden="true" className="h-px shrink-0" />
       </ul>
 
-      <div className="flex gap-2 p-4 border-t">
+      <div className="relative flex gap-2 border-t p-4">
+        {hasNewMessages && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="absolute bottom-full left-1/2 mb-3 -translate-x-1/2 gap-2 rounded-full shadow-md"
+            onClick={scrollToLatest}
+          >
+            <ArrowDownIcon />
+            New messages
+          </Button>
+        )}
         <Input
           placeholder="Type a message..."
           className="h-10"

@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { UserButton } from "@clerk/tanstack-react-start";
+import { QrCode } from "lucide-react";
+import { Button } from "~/components/ui/button";
 import { useTRPC } from "~/integrations/trpc/react";
 
 function formatTime(date: Date | string | null) {
@@ -33,7 +35,12 @@ export function ConvoList() {
     <div className="flex min-h-dvh flex-col p-4">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Chat</h1>
-        <UserButton />
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="icon" aria-label="QR code">
+            <QrCode />
+          </Button>
+          <UserButton />
+        </div>
       </div>
 
       <div className="mt-6 flex flex-col gap-1">

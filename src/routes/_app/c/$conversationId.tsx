@@ -3,11 +3,13 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "~/integrations/trpc/react";
 import { ChatBubble } from "~/components/chat-bubble";
+import type { UIMessage } from "~/components/chat-bubble";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { cn } from "~/lib/utils";
+import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
@@ -16,6 +18,7 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 function ConversationPage() {
   const { conversationId } = Route.useParams();
   const [body, setBody] = useState("");
+  const [optimisticMessages, setOptimisticMessages] = useState<UIMessage[]>([]);
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -25,21 +28,51 @@ function ConversationPage() {
   const messages = useQuery(
     trpc.conversations.messages.queryOptions({ conversationId: convoId }),
   );
+  useConversationRealtime(convoId);
 
   const send = useMutation(
     trpc.conversations.sendMessage.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries(
-          trpc.conversations.messages.queryOptions({ conversationId: convoId }),
+      onSuccess: (message, variables) => {
+        setOptimisticMessages((current) =>
+          current.filter((item) => item.body !== variables.body),
+        );
+        queryClient.setQueryData(
+          trpc.conversations.messages.queryKey({ conversationId: convoId }),
+          (current) => {
+            if (!current?.some((item) => item.id === message.id)) {
+              return [...(current ?? []), message];
+            }
+            return current;
+          },
         );
         queryClient.invalidateQueries(trpc.conversations.list.queryOptions());
+      },
+      onError: (_error, variables) => {
+        setOptimisticMessages((current) =>
+          current.map((item) =>
+            item.body === variables.body ? { ...item, status: "failed" } : item,
+          ),
+        );
       },
     }),
   );
 
   const handleSend = () => {
     if (!body.trim()) return;
-    send.mutate({ conversationId: convoId, body: body.trim() });
+    const messageBody = body.trim();
+    setOptimisticMessages((current) => [
+      ...current,
+      {
+        id: `temp-${crypto.randomUUID()}`,
+        conversationId: convoId,
+        body: messageBody,
+        senderId: me.data?.id ?? 0,
+        createdAt: new Date(),
+        username: null,
+        status: "sending",
+      },
+    ]);
+    send.mutate({ conversationId: convoId, body: messageBody });
     setBody("");
   };
 
@@ -48,7 +81,7 @@ function ConversationPage() {
       <ConvoHeader conversationId={conversationId} />
 
       <ul className="flex-1 min-h-0 flex flex-col w-full gap-8 overflow-y-scroll py-12">
-        {messages.data?.map((msg) => (
+        {[...(messages.data ?? []), ...optimisticMessages].map((msg) => (
           <ChatBubble
             key={msg.id}
             message={msg}

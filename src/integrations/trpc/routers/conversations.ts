@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq, and, desc, isNull, sql } from "drizzle-orm";
 import { protectedProcedure } from "../init";
 import { db } from "~/db";
+import { pusherServer } from "~/lib/pusher-server";
 import {
   users,
   conversations,
@@ -185,7 +186,8 @@ export const conversationsRouter = {
 
   messages: protectedProcedure
     .input(z.object({ conversationId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertConversationMember(ctx.userId, input.conversationId);
       return db
         .select({
           id: messages.id,
@@ -203,15 +205,61 @@ export const conversationsRouter = {
   sendMessage: protectedProcedure
     .input(z.object({ conversationId: z.number(), body: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const [msg] = await db
+      await assertConversationMember(ctx.userId, input.conversationId);
+      const [inserted] = await db
         .insert(messages)
         .values({
           conversationId: input.conversationId,
           senderId: ctx.userId,
           body: input.body,
         })
-        .returning({ id: messages.id });
+        .returning({
+          id: messages.id,
+          conversationId: messages.conversationId,
+          body: messages.body,
+          senderId: messages.senderId,
+          createdAt: messages.createdAt,
+        });
 
-      return { id: msg.id };
+      const [msg] = await db
+        .select({
+          id: messages.id,
+          conversationId: messages.conversationId,
+          body: messages.body,
+          senderId: messages.senderId,
+          createdAt: messages.createdAt,
+          username: users.username,
+        })
+        .from(messages)
+        .innerJoin(users, eq(messages.senderId, users.id))
+        .where(eq(messages.id, inserted.id))
+        .limit(1);
+
+      await pusherServer.trigger(
+        `private-conversation-${input.conversationId}`,
+        "message.created",
+        msg,
+      );
+
+      return msg;
     }),
 } satisfies TRPCRouterRecord;
+
+async function assertConversationMember(
+  userId: number,
+  conversationId: number,
+) {
+  const member = await db
+    .select({ userId: conversationMembers.userId })
+    .from(conversationMembers)
+    .where(
+      and(
+        eq(conversationMembers.conversationId, conversationId),
+        eq(conversationMembers.userId, userId),
+        isNull(conversationMembers.leftAt),
+      ),
+    )
+    .limit(1);
+
+  if (!member[0]) throw new Error("Not a member of this conversation");
+}

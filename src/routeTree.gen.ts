@@ -14,6 +14,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppCConversationIdRouteImport } from './routes/_app/c/$conversationId'
 import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
 import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
+import { Route as ApiPusherAuthRouteImport } from './routes/api/pusher/auth'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 import { Route as ApiWebhooksClerkRouteImport } from './routes/api/webhooks/clerk'
 
@@ -41,6 +42,11 @@ const AuthSignUpSplatRoute = AuthSignUpSplatRouteImport.update({
   path: '/sign-up/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPusherAuthRoute = ApiPusherAuthRouteImport.update({
+  id: '/api/pusher/auth',
+  path: '/api/pusher/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
   id: '/api/trpc/$',
   path: '/api/trpc/$',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/c/$conversationId': typeof AppCConversationIdRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
+  '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/c/$conversationId': typeof AppCConversationIdRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
+  '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
 }
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/_app/c/$conversationId': typeof AppCConversationIdRoute
   '/_auth/sign-in/$': typeof AuthSignInSplatRoute
   '/_auth/sign-up/$': typeof AuthSignUpSplatRoute
+  '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
 }
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/c/$conversationId'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
   fileRoutesByTo: FileRoutesByTo
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/c/$conversationId'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
   id:
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/_app/c/$conversationId'
     | '/_auth/sign-in/$'
     | '/_auth/sign-up/$'
+    | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
   fileRoutesById: FileRoutesById
@@ -110,6 +122,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthSignInSplatRoute: typeof AuthSignInSplatRoute
   AuthSignUpSplatRoute: typeof AuthSignUpSplatRoute
+  ApiPusherAuthRoute: typeof ApiPusherAuthRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
   ApiWebhooksClerkRoute: typeof ApiWebhooksClerkRoute
 }
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignUpSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pusher/auth': {
+      id: '/api/pusher/auth'
+      path: '/api/pusher/auth'
+      fullPath: '/api/pusher/auth'
+      preLoaderRoute: typeof ApiPusherAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/trpc/$': {
       id: '/api/trpc/$'
       path: '/api/trpc/$'
@@ -184,6 +204,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthSignInSplatRoute: AuthSignInSplatRoute,
   AuthSignUpSplatRoute: AuthSignUpSplatRoute,
+  ApiPusherAuthRoute: ApiPusherAuthRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
   ApiWebhooksClerkRoute: ApiWebhooksClerkRoute,
 }

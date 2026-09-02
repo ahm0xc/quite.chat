@@ -171,7 +171,7 @@ function ConversationPage() {
         className="relative min-h-0 w-full flex-1 overflow-y-scroll pt-4 pb-6"
       >
         <div
-          className="relative w-full"
+          className="relative min-h-full w-full"
           style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -189,7 +189,10 @@ function ConversationPage() {
                   "absolute top-0 left-0 flex w-full pb-8",
                   "justify-start",
                 )}
-                style={{ transform: `translateY(${virtualRow.start}px)` }}
+                style={{
+                  top: `max(0px, calc(100% - ${rowVirtualizer.getTotalSize()}px))`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
               >
                 <MessageBubble
                   message={msg}

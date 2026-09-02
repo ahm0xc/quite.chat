@@ -93,7 +93,7 @@ function ConversationPage() {
 
       <ul
         ref={messagesListRef}
-        className="relative flex min-h-0 w-full flex-1 flex-col gap-8 overflow-y-scroll pt-12 pb-6"
+        className="relative flex min-h-0 w-full flex-1 flex-col gap-8 overflow-y-scroll pt-12 pb-6 before:min-h-0 before:flex-1 before:content-['']"
       >
         {renderedMessages.map((msg) => (
           <ChatBubble

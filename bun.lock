@@ -24,6 +24,8 @@
         "@trpc/tanstack-react-query": "^11.11.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "dexie": "^4.4.5",
+        "dexie-react-hooks": "^4.4.0",
         "drizzle-orm": "^1.0.0-rc.4",
         "nitro": "3.0.260610-beta",
         "pusher": "^5.3.4",
@@ -801,6 +803,10 @@
     "dequal": ["dequal@2.0.3", "", {}, "sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA=="],
 
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
+
+    "dexie": ["dexie@4.4.5", "", {}, "sha512-wWCHdihT3dmlUSuNhn5mMZDWSpG0suxjAni7YjjiZdzabZcKmy3uNZGZ7AeYYXBoLbpSXX35fikPLkPC44Osiw=="],
+
+    "dexie-react-hooks": ["dexie-react-hooks@4.4.0", "", { "peerDependencies": { "dexie": ">=4.2.0-alpha.1 <5.0.0", "react": ">=16" } }, "sha512-ObLXBS5+4BJU8vtSvBx6b9fY6zZYgniAtwxzjCHsUQadgbqYN6935X2/1TWw4Rf2N1aZV1io5/ziox4vKuxABA=="],
 
     "diff": ["diff@8.0.4", "", {}, "sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw=="],
 

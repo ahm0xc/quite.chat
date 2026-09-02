@@ -18,6 +18,9 @@ const requireAuth = createServerFn().handler(async () => {
 });
 
 export const Route = createFileRoute("/_app")({
+  // The chat shell is cache-first. Server APIs remain protected by Clerk,
+  // but the initial HTML should not wait for Clerk/tRPC before booting Dexie.
+  ssr: false,
   beforeLoad: async () => await requireAuth(),
   component: Layout,
 });

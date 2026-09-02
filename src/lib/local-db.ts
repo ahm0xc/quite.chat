@@ -1,0 +1,90 @@
+import Dexie from "dexie";
+import type { Table } from "dexie";
+
+export type LocalMessage = {
+  id: number;
+  conversationId: number;
+  body: string;
+  senderId: number;
+  createdAt: Date;
+  username: string | null;
+};
+
+export type LocalConversation = {
+  id: number;
+  type: "direct";
+  otherUser: {
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  lastMessage: {
+    body: string;
+    createdAt: Date;
+    senderId: number;
+  } | null;
+};
+
+export type LocalUser = {
+  id: number;
+  username?: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+};
+
+class LocalDatabase extends Dexie {
+  messages!: Table<LocalMessage, number>;
+  conversations!: Table<LocalConversation, number>;
+  users!: Table<LocalUser, number>;
+
+  constructor() {
+    super("chat-local-cache");
+    this.version(1).stores({
+      messages: "id, conversationId, createdAt",
+      conversations: "id",
+      users: "id",
+    });
+  }
+}
+
+export const localDb = new LocalDatabase();
+
+export async function hydrateLocalDb() {
+  await localDb.open();
+}
+
+export async function pruneLocalMessages() {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const expired = await localDb.messages
+    .where("createdAt")
+    .below(cutoff)
+    .toArray();
+  if (!expired.length) return;
+  await localDb.messages.bulkDelete(expired.map((message) => message.id));
+}
+
+export async function upsertMessages(rows: Array<LocalMessage>) {
+  await localDb.messages.bulkPut(rows);
+}
+
+export async function upsertConversations(rows: Array<LocalConversation>) {
+  await localDb.conversations.bulkPut(rows);
+}
+
+export async function upsertUsers(rows: Array<LocalUser>) {
+  await localDb.users.bulkPut(rows);
+}
+
+export async function clearLocalDb() {
+  await localDb.transaction(
+    "rw",
+    [localDb.messages, localDb.conversations, localDb.users],
+    async () => {
+      await Promise.all([
+        localDb.messages.clear(),
+        localDb.conversations.clear(),
+        localDb.users.clear(),
+      ]);
+    },
+  );
+}

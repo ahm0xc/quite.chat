@@ -1,9 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
 import Pusher from "pusher-js";
 import { useEffect } from "react";
 
 import { env } from "~/env";
-import { useTRPC } from "~/integrations/trpc/react";
+import { upsertMessages } from "~/lib/local-db";
 
 const pusher = new Pusher(env.VITE_PUSHER_KEY, {
   cluster: env.VITE_PUSHER_CLUSTER,
@@ -14,39 +13,22 @@ const pusher = new Pusher(env.VITE_PUSHER_KEY, {
 });
 
 export function useConversationRealtime(conversationId: number) {
-  const queryClient = useQueryClient();
-  const trpc = useTRPC();
-
   useEffect(() => {
     const channel = pusher.subscribe(`private-conversation-${conversationId}`);
-    const messagesKey = trpc.conversations.messages.queryKey({
-      conversationId,
-    });
 
     channel.bind("message.created", (message: MessageEvent) => {
       const normalizedMessage = {
         ...message,
         createdAt: new Date(message.createdAt),
       };
-      queryClient.setQueryData(messagesKey, (current) => {
-        if (
-          !current ||
-          current.some((item) => item.id === normalizedMessage.id)
-        ) {
-          return current;
-        }
-        return [...current, normalizedMessage];
-      });
-      void queryClient.invalidateQueries({
-        queryKey: trpc.conversations.list.queryKey(),
-      });
+      void upsertMessages([{ ...normalizedMessage, conversationId }]);
     });
 
     return () => {
       channel.unbind("message.created");
       pusher.unsubscribe(`private-conversation-${conversationId}`);
     };
-  }, [conversationId, queryClient, trpc]);
+  }, [conversationId]);
 }
 
 type MessageEvent = {

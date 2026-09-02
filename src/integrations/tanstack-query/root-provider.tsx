@@ -2,10 +2,12 @@ import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchStreamLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import superjson from "superjson";
 
 import { TRPCProvider } from "~/integrations/trpc/react";
 import type { TRPCRouter } from "~/integrations/trpc/router";
+import { hydrateLocalDb, pruneLocalMessages } from "~/lib/local-db";
 
 function getUrl() {
   const base = (() => {
@@ -52,6 +54,11 @@ export default function TanstackQueryProvider({
   context: ReturnType<typeof getContext>;
 }) {
   const { queryClient } = context;
+
+  useEffect(() => {
+    void hydrateLocalDb();
+    void pruneLocalMessages();
+  }, []);
 
   return (
     <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>

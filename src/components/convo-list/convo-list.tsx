@@ -1,4 +1,4 @@
-import { useClerk, useUser } from "@clerk/tanstack-react-start";
+import { useAuth, useClerk, useUser } from "@clerk/tanstack-react-start";
 import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
 import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
@@ -6,6 +6,7 @@ import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useLiveQuery } from "dexie-react-hooks";
 import * as React from "react";
 
 import { useTheme } from "~/components/theme-provider";
@@ -31,6 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { useTRPC } from "~/integrations/trpc/react";
+import { clearLocalDb, localDb } from "~/lib/local-db";
+import { syncConversations } from "~/lib/local-sync";
 
 function formatTime(date: Date | string | null) {
   if (!date) return "";
@@ -56,9 +59,20 @@ function formatTime(date: Date | string | null) {
 
 export function ConvoList() {
   const { user } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const trpc = useTRPC();
-  const conversations = useQuery(trpc.conversations.list.queryOptions());
+  const conversations = useQuery({
+    ...trpc.conversations.list.queryOptions(),
+    enabled: isLoaded && isSignedIn === true,
+  });
+  const localConversations = useLiveQuery(
+    () => localDb.conversations.toArray(),
+    [],
+  );
+  React.useEffect(() => {
+    if (conversations.data) void syncConversations(conversations.data);
+  }, [conversations.data]);
   const { setTheme, theme } = useTheme();
   const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
 
@@ -85,7 +99,7 @@ export function ConvoList() {
                   className="h-8 w-8 rounded-full border-2"
                 />
               ) : (
-                <div className="bg-muted size-10 animate-pulse rounded-full border-2" />
+                <div className="bg-muted size-8 animate-pulse rounded-full border-2" />
               )}
             </DropdownMenuTrigger>
 
@@ -135,7 +149,13 @@ export function ConvoList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => signOut()}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={async () => {
+                await clearLocalDb();
+                await signOut();
+              }}
+            >
               Log out
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -143,7 +163,10 @@ export function ConvoList() {
       </AlertDialog>
 
       <div className="mt-6 flex flex-col gap-1">
-        {conversations.data?.map((convo) => (
+        {(localConversations?.length
+          ? localConversations
+          : (conversations.data ?? [])
+        ).map((convo) => (
           <Link
             key={convo.id}
             to="/c/$conversationId"
@@ -183,7 +206,10 @@ export function ConvoList() {
             </div>
           </Link>
         ))}
-        {conversations.data?.length === 0 && (
+        {(localConversations?.length
+          ? localConversations
+          : (conversations.data ?? [])
+        ).length === 0 && (
           <p className="text-muted-foreground py-8 text-center text-sm">
             No conversations yet. Search for users to start chatting.
           </p>

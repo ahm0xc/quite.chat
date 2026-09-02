@@ -1,9 +1,11 @@
+import { useAuth } from "@clerk/tanstack-react-start";
 import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
 import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useState } from "react";
 
 import { ChatBubble } from "~/components/chat-bubble";
 import type { UIMessage } from "~/components/chat-bubble";
@@ -12,6 +14,8 @@ import { Input } from "~/components/ui/input";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
+import { localDb, upsertMessages } from "~/lib/local-db";
+import { syncMessages } from "~/lib/local-sync";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
@@ -27,12 +31,34 @@ function ConversationPage() {
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { isLoaded, isSignedIn } = useAuth();
 
-  const me = useQuery(trpc.users.me.queryOptions());
+  const me = useQuery({
+    ...trpc.users.me.queryOptions(),
+    enabled: isLoaded && isSignedIn === true,
+  });
   const convoId = Number(conversationId);
-  const messages = useQuery(
-    trpc.conversations.messages.queryOptions({ conversationId: convoId }),
+  const messages = useQuery({
+    ...trpc.conversations.messages.queryOptions({ conversationId: convoId }),
+    enabled: isLoaded && isSignedIn === true,
+  });
+  const localMessages = useLiveQuery(
+    () =>
+      localDb.messages
+        .where("conversationId")
+        .equals(convoId)
+        .sortBy("createdAt"),
+    [convoId],
   );
+  useEffect(() => {
+    if (messages.data)
+      void syncMessages(
+        messages.data.map((message) => ({
+          ...message,
+          conversationId: convoId,
+        })),
+      );
+  }, [messages.data, convoId]);
   useConversationRealtime(convoId);
 
   const send = useMutation(
@@ -50,6 +76,7 @@ function ConversationPage() {
             return current;
           },
         );
+        void upsertMessages([{ ...message, conversationId: convoId }]);
         void queryClient.invalidateQueries(
           trpc.conversations.list.queryOptions(),
         );
@@ -83,7 +110,10 @@ function ConversationPage() {
     setBody("");
   };
 
-  const renderedMessages = [...(messages.data ?? []), ...optimisticMessages];
+  const renderedMessages = [
+    ...(localMessages?.length ? localMessages : (messages.data ?? [])),
+    ...optimisticMessages,
+  ];
   const { hasNewMessages, messagesEndRef, messagesListRef, scrollToLatest } =
     useMessageScroll(renderedMessages.length);
 
@@ -141,11 +171,13 @@ function ConversationPage() {
 
 function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
-  const details = useQuery(
-    trpc.conversations.details.queryOptions({
+  const { isLoaded, isSignedIn } = useAuth();
+  const details = useQuery({
+    ...trpc.conversations.details.queryOptions({
       conversationId: Number(conversationId),
     }),
-  );
+    enabled: isLoaded && isSignedIn === true,
+  });
 
   const user = details.data?.otherUser;
 

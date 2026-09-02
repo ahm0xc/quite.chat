@@ -5,7 +5,7 @@ import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChatBubble } from "~/components/chat-bubble";
 import type { UIMessage } from "~/components/chat-bubble";
@@ -42,6 +42,10 @@ function ConversationPage() {
     ...trpc.conversations.messages.queryOptions({ conversationId: convoId }),
     enabled: isLoaded && isSignedIn === true,
   });
+  const { mutate: markRead } = useMutation(
+    trpc.conversations.markRead.mutationOptions(),
+  );
+  const latestMessageRef = useRef<HTMLLIElement>(null);
   const localMessages = useLiveQuery(
     () =>
       localDb.messages
@@ -114,8 +118,30 @@ function ConversationPage() {
     ...(localMessages?.length ? localMessages : (messages.data ?? [])),
     ...optimisticMessages,
   ];
+  const latestMessage = [...renderedMessages]
+    .reverse()
+    .find((message) => typeof message.id === "number");
   const { hasNewMessages, messagesEndRef, messagesListRef, scrollToLatest } =
     useMessageScroll(renderedMessages.length);
+  useEffect(() => {
+    const message = latestMessage;
+    const element = latestMessageRef.current;
+    const list = messagesListRef.current;
+    if (!message || !element || !list) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && isLoaded && isSignedIn === true) {
+          markRead({
+            conversationId: convoId,
+            messageId: message.id as number,
+          });
+        }
+      },
+      { root: list, threshold: 0.5 },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [convoId, isLoaded, isSignedIn, latestMessage, markRead, messagesListRef]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -126,12 +152,20 @@ function ConversationPage() {
         className="relative flex min-h-0 w-full flex-1 flex-col gap-8 overflow-y-scroll pt-12 pb-6 before:min-h-0 before:flex-1 before:content-['']"
       >
         {renderedMessages.map((msg) => (
-          <ChatBubble
+          <li
             key={msg.id}
-            message={msg}
-            isOwnMessage={me.data?.id === msg.senderId}
-            className={cn("", me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
-          />
+            className={cn(
+              "flex w-full",
+              me.data?.id === msg.senderId ? "justify-end" : "justify-start",
+            )}
+            ref={msg.id === latestMessage?.id ? latestMessageRef : undefined}
+          >
+            <ChatBubble
+              message={msg}
+              isOwnMessage={me.data?.id === msg.senderId}
+              className={cn("", me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
+            />
+          </li>
         ))}
         <li ref={messagesEndRef} aria-hidden="true" className="h-px shrink-0" />
       </ul>

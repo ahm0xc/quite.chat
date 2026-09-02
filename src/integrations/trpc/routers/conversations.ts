@@ -39,6 +39,7 @@ export const conversationsRouter = {
         username: users.username,
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
+        lastReadMessageId: conversationMembers.lastReadMessageId,
       })
       .from(conversationMembers)
       .innerJoin(users, eq(conversationMembers.userId, users.id))
@@ -46,6 +47,7 @@ export const conversationsRouter = {
 
     const lastMessages = await db
       .select({
+        id: messages.id,
         conversationId: messages.conversationId,
         body: messages.body,
         createdAt: messages.createdAt,
@@ -57,11 +59,12 @@ export const conversationsRouter = {
 
     const lastMsgByConvo = new Map<
       number,
-      { body: string; createdAt: Date; senderId: number }
+      { id: number; body: string; createdAt: Date; senderId: number }
     >();
     for (const msg of lastMessages) {
       if (!lastMsgByConvo.has(msg.conversationId)) {
         lastMsgByConvo.set(msg.conversationId, {
+          id: msg.id,
           body: msg.body,
           createdAt: msg.createdAt,
           senderId: msg.senderId,
@@ -81,6 +84,7 @@ export const conversationsRouter = {
         const members = membersByConvo.get(convoId) ?? [];
         const otherMember = members.find((m) => m.userId !== ctx.userId);
         const lastMessage = lastMsgByConvo.get(convoId) ?? null;
+        const currentMember = members.find((m) => m.userId === ctx.userId);
         return {
           id: convoId,
           type: "direct" as const,
@@ -92,6 +96,10 @@ export const conversationsRouter = {
               }
             : null,
           lastMessage,
+          hasUnread:
+            lastMessage !== null &&
+            lastMessage.senderId !== ctx.userId &&
+            lastMessage.id > (currentMember?.lastReadMessageId ?? 0),
         };
       })
       .sort((a, b) => {
@@ -130,6 +138,34 @@ export const conversationsRouter = {
             }
           : null,
       };
+    }),
+
+  markRead: protectedProcedure
+    .input(z.object({ conversationId: z.number(), messageId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertConversationMember(ctx.userId, input.conversationId);
+      const message = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.id, input.messageId),
+            eq(messages.conversationId, input.conversationId),
+          ),
+        )
+        .limit(1);
+      if (!message[0])
+        throw new Error("Message does not belong to conversation");
+      await db
+        .update(conversationMembers)
+        .set({ lastReadMessageId: message[0].id })
+        .where(
+          and(
+            eq(conversationMembers.conversationId, input.conversationId),
+            eq(conversationMembers.userId, ctx.userId),
+          ),
+        );
+      return { success: true };
     }),
 
   getOrCreate: protectedProcedure

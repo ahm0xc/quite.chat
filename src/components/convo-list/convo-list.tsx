@@ -5,7 +5,7 @@ import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as React from "react";
 
@@ -31,8 +31,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { useConversationsRealtime } from "~/hooks/use-conversation-realtime";
 import { useTRPC } from "~/integrations/trpc/react";
-import { clearLocalDb, localDb } from "~/lib/local-db";
+import { clearLocalDb, localDb, markConversationRead } from "~/lib/local-db";
 import { syncConversations } from "~/lib/local-sync";
 
 function formatTime(date: Date | string | null) {
@@ -62,6 +63,16 @@ export function ConvoList() {
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const trpc = useTRPC();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const currentConversationId = pathname.startsWith("/c/")
+    ? Number(pathname.slice(3))
+    : null;
+  const me = useQuery({
+    ...trpc.users.me.queryOptions(),
+    enabled: isLoaded && isSignedIn === true,
+  });
   const conversations = useQuery({
     ...trpc.conversations.list.queryOptions(),
     enabled: isLoaded && isSignedIn === true,
@@ -70,6 +81,18 @@ export function ConvoList() {
     () => localDb.conversations.toArray(),
     [],
   );
+  const conversationIds = React.useMemo(
+    () =>
+      (localConversations ?? conversations.data ?? [])
+        .map((convo) => convo.id)
+        .filter((id) => id !== currentConversationId),
+    [localConversations, conversations.data, currentConversationId],
+  );
+  useConversationsRealtime(conversationIds, currentConversationId, me.data?.id);
+  React.useEffect(() => {
+    if (currentConversationId !== null)
+      void markConversationRead(currentConversationId);
+  }, [currentConversationId]);
   React.useEffect(() => {
     if (conversations.data) void syncConversations(conversations.data);
   }, [conversations.data]);
@@ -163,49 +186,68 @@ export function ConvoList() {
       </AlertDialog>
 
       <div className="mt-6 flex flex-col gap-1">
-        {(localConversations?.length
-          ? localConversations
-          : (conversations.data ?? [])
-        ).map((convo) => (
-          <Link
-            key={convo.id}
-            to="/c/$conversationId"
-            params={{ conversationId: String(convo.id) }}
-            activeProps={{ className: "bg-accent font-medium" }}
-            className="hover:bg-accent flex items-center gap-3 rounded-md px-3 py-2 transition-colors"
-          >
-            {convo.otherUser?.avatarUrl ? (
-              <img
-                src={convo.otherUser.avatarUrl}
-                alt=""
-                className="h-10 w-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
-                {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <span className="font-heading truncate text-sm font-medium">
-                  {convo.otherUser?.displayName ??
-                    convo.otherUser?.username ??
-                    "Unknown"}
-                </span>
-                {convo.lastMessage && (
-                  <span className="text-muted-foreground ml-2 shrink-0 text-xs">
-                    {formatTime(convo.lastMessage.createdAt)}
+        {[
+          ...(localConversations?.length
+            ? localConversations
+            : (conversations.data ?? [])),
+        ]
+          .sort(
+            (a, b) =>
+              (b.lastMessage?.createdAt
+                ? new Date(b.lastMessage.createdAt).getTime()
+                : 0) -
+              (a.lastMessage?.createdAt
+                ? new Date(a.lastMessage.createdAt).getTime()
+                : 0),
+          )
+          .map((convo) => (
+            <Link
+              key={convo.id}
+              to="/c/$conversationId"
+              params={{ conversationId: String(convo.id) }}
+              activeProps={{ className: "bg-accent font-medium" }}
+              className="hover:bg-accent flex items-center gap-3 rounded-md px-3 py-2 transition-colors"
+            >
+              {convo.otherUser?.avatarUrl ? (
+                <img
+                  src={convo.otherUser.avatarUrl}
+                  alt=""
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
+                  {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading truncate text-sm font-medium">
+                    {convo.otherUser?.displayName ??
+                      convo.otherUser?.username ??
+                      "Unknown"}
                   </span>
+                  {convo.lastMessage && (
+                    <span className="text-muted-foreground ml-2 shrink-0 text-xs">
+                      {formatTime(convo.lastMessage.createdAt)}
+                    </span>
+                  )}
+                </div>
+                {convo.lastMessage && (
+                  <p className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate">
+                      {convo.lastMessage.body}
+                    </span>
+                    {"hasUnread" in convo && convo.hasUnread === true && (
+                      <span
+                        className="size-2 shrink-0 rounded-full bg-blue-500"
+                        aria-label="Unread message"
+                      />
+                    )}
+                  </p>
                 )}
               </div>
-              {convo.lastMessage && (
-                <p className="text-muted-foreground truncate text-sm">
-                  {convo.lastMessage.body}
-                </p>
-              )}
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
         {(localConversations?.length
           ? localConversations
           : (conversations.data ?? [])

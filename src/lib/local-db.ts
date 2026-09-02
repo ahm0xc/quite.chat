@@ -19,10 +19,12 @@ export type LocalConversation = {
     avatarUrl: string | null;
   } | null;
   lastMessage: {
+    id: number;
     body: string;
     createdAt: Date;
     senderId: number;
   } | null;
+  hasUnread?: boolean;
 };
 
 export type LocalUser = {
@@ -69,6 +71,24 @@ export async function upsertMessages(rows: Array<LocalMessage>) {
 
 export async function upsertConversations(rows: Array<LocalConversation>) {
   await localDb.conversations.bulkPut(rows);
+}
+
+export async function updateConversationFromMessage(
+  conversationId: number,
+  message: LocalConversation["lastMessage"],
+  hasUnread: boolean,
+) {
+  const conversation = await localDb.conversations.get(conversationId);
+  if (!conversation) return;
+  await localDb.conversations.put({
+    ...conversation,
+    lastMessage: message,
+    hasUnread: hasUnread || conversation.hasUnread,
+  });
+}
+
+export async function markConversationRead(conversationId: number) {
+  await localDb.conversations.update(conversationId, { hasUnread: false });
 }
 
 export async function upsertUsers(rows: Array<LocalUser>) {

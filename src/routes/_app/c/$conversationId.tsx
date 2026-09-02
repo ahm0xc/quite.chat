@@ -54,6 +54,13 @@ function ConversationPage() {
     trpc.conversations.markRead.mutationOptions(),
   );
   const latestMessageRef = useRef<HTMLLIElement>(null);
+
+  // stale optimistic state bleeds across SPA navigations without this
+  useEffect(() => {
+    setOptimisticMessages([]);
+    setOptimisticallyDeletedIds(new Set());
+  }, [convoId]);
+
   const localMessages = useLiveQuery(
     () =>
       localDb.messages
@@ -220,7 +227,7 @@ function ConversationPage() {
     .reverse()
     .find((message) => typeof message.id === "number");
   const { hasNewMessages, messagesListRef, rowVirtualizer, scrollToLatest } =
-    useMessageScroll(renderedMessages.length);
+    useMessageScroll(renderedMessages.length, convoId);
   useEffect(() => {
     const message = latestMessage;
     const element = latestMessageRef.current;

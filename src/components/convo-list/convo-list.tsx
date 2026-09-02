@@ -1,7 +1,7 @@
 import { useClerk, useUser } from "@clerk/tanstack-react-start";
 import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
 import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
-import { QrCodeIcon } from "@phosphor-icons/react/dist/csr/QrCode";
+import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 import { useQuery } from "@tanstack/react-query";
@@ -67,9 +67,15 @@ export function ConvoList() {
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Chat</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="QR code">
-            <QrCodeIcon />
-          </Button>
+          <Link to="/start">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Start conversation"
+            >
+              <PlusIcon />
+            </Button>
+          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger render={<button />}>

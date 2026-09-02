@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppStartRouteImport } from './routes/_app/start'
 import { Route as AppCConversationIdRouteImport } from './routes/_app/c/$conversationId'
+import { Route as AppPUsernameRouteImport } from './routes/_app/p/$username'
 import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
 import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
 import { Route as ApiPusherAuthRouteImport } from './routes/api/pusher/auth'
@@ -27,9 +29,19 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStartRoute = AppStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCConversationIdRoute = AppCConversationIdRouteImport.update({
   id: '/c/$conversationId',
   path: '/c/$conversationId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPUsernameRoute = AppPUsernameRouteImport.update({
+  id: '/p/$username',
+  path: '/p/$username',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthSignInSplatRoute = AuthSignInSplatRouteImport.update({
@@ -60,7 +72,9 @@ const ApiWebhooksClerkRoute = ApiWebhooksClerkRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/start': typeof AppStartRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
+  '/p/$username': typeof AppPUsernameRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/pusher/auth': typeof ApiPusherAuthRoute
@@ -68,8 +82,10 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
 }
 export interface FileRoutesByTo {
+  '/start': typeof AppStartRoute
   '/': typeof AppIndexRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
+  '/p/$username': typeof AppPUsernameRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/pusher/auth': typeof ApiPusherAuthRoute
@@ -79,8 +95,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_app/start': typeof AppStartRoute
   '/_app/': typeof AppIndexRoute
   '/_app/c/$conversationId': typeof AppCConversationIdRoute
+  '/_app/p/$username': typeof AppPUsernameRoute
   '/_auth/sign-in/$': typeof AuthSignInSplatRoute
   '/_auth/sign-up/$': typeof AuthSignUpSplatRoute
   '/api/pusher/auth': typeof ApiPusherAuthRoute
@@ -91,7 +109,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/start'
     | '/c/$conversationId'
+    | '/p/$username'
     | '/sign-in/$'
     | '/sign-up/$'
     | '/api/pusher/auth'
@@ -99,8 +119,10 @@ export interface FileRouteTypes {
     | '/api/webhooks/clerk'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/start'
     | '/'
     | '/c/$conversationId'
+    | '/p/$username'
     | '/sign-in/$'
     | '/sign-up/$'
     | '/api/pusher/auth'
@@ -109,8 +131,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/_app/start'
     | '/_app/'
     | '/_app/c/$conversationId'
+    | '/_app/p/$username'
     | '/_auth/sign-in/$'
     | '/_auth/sign-up/$'
     | '/api/pusher/auth'
@@ -143,11 +167,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/start': {
+      id: '/_app/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof AppStartRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/c/$conversationId': {
       id: '/_app/c/$conversationId'
       path: '/c/$conversationId'
       fullPath: '/c/$conversationId'
       preLoaderRoute: typeof AppCConversationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/p/$username': {
+      id: '/_app/p/$username'
+      path: '/p/$username'
+      fullPath: '/p/$username'
+      preLoaderRoute: typeof AppPUsernameRouteImport
       parentRoute: typeof AppRoute
     }
     '/_auth/sign-in/$': {
@@ -189,13 +227,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppStartRoute: typeof AppStartRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCConversationIdRoute: typeof AppCConversationIdRoute
+  AppPUsernameRoute: typeof AppPUsernameRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppStartRoute: AppStartRoute,
   AppIndexRoute: AppIndexRoute,
   AppCConversationIdRoute: AppCConversationIdRoute,
+  AppPUsernameRoute: AppPUsernameRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

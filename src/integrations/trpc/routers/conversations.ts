@@ -52,6 +52,7 @@ export const conversationsRouter = {
         body: messages.body,
         createdAt: messages.createdAt,
         senderId: messages.senderId,
+        deletedAt: messages.deletedAt,
       })
       .from(messages)
       .where(sql`${messages.conversationId} IN ${convoIds}`)
@@ -65,7 +66,7 @@ export const conversationsRouter = {
       if (!lastMsgByConvo.has(msg.conversationId)) {
         lastMsgByConvo.set(msg.conversationId, {
           id: msg.id,
-          body: msg.body,
+          body: msg.deletedAt ? "This message was deleted" : msg.body,
           createdAt: msg.createdAt,
           senderId: msg.senderId,
         });
@@ -237,11 +238,41 @@ export const conversationsRouter = {
           senderId: messages.senderId,
           createdAt: messages.createdAt,
           username: users.username,
+          deletedAt: messages.deletedAt,
         })
         .from(messages)
         .innerJoin(users, eq(messages.senderId, users.id))
         .where(eq(messages.conversationId, input.conversationId))
         .orderBy(messages.createdAt);
+    }),
+
+  deleteMessage: protectedProcedure
+    .input(z.object({ conversationId: z.number(), messageId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertConversationMember(ctx.userId, input.conversationId);
+      const rows = await db
+        .select({ id: messages.id, senderId: messages.senderId })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.id, input.messageId),
+            eq(messages.conversationId, input.conversationId),
+            isNull(messages.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!rows[0]) throw new Error("Message not found");
+      if (rows[0].senderId !== ctx.userId) throw new Error("Not authorized");
+      await db
+        .update(messages)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(messages.id, input.messageId));
+      await pusherServer.trigger(
+        `private-conversation-${input.conversationId}`,
+        "message.deleted",
+        { id: input.messageId, conversationId: input.conversationId },
+      );
+      return { success: true };
     }),
 
   sendMessage: protectedProcedure
@@ -261,6 +292,7 @@ export const conversationsRouter = {
           body: messages.body,
           senderId: messages.senderId,
           createdAt: messages.createdAt,
+          deletedAt: messages.deletedAt,
         });
 
       const [msg] = await db
@@ -271,6 +303,7 @@ export const conversationsRouter = {
           senderId: messages.senderId,
           createdAt: messages.createdAt,
           username: users.username,
+          deletedAt: messages.deletedAt,
         })
         .from(messages)
         .innerJoin(users, eq(messages.senderId, users.id))

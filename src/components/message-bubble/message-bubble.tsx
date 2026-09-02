@@ -14,11 +14,13 @@ import {
   ContextMenuTrigger,
 } from "~/components/ui/context-menu";
 import type { RouterOutputs } from "~/integrations/trpc/router";
+import type { LocalMessage } from "~/lib/local-db";
 import { cn } from "~/lib/utils";
 
 export type Message = RouterOutputs["conversations"]["messages"][number];
-export type UIMessage = Omit<Message, "id"> & {
+export type UIMessage = Omit<Message, "id" | "deletedAt"> & {
   id: number | string;
+  deletedAt?: Date | string | null;
   status?: "sending" | "sent" | "failed";
 };
 
@@ -46,15 +48,20 @@ export function MessageBubble({
   message,
   sender,
   isOwnMessage,
+  onDelete,
 }: {
-  message: UIMessage;
+  message: UIMessage | LocalMessage;
   sender?: {
     username?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
   };
   isOwnMessage: boolean;
+  onDelete?: (messageId: number) => void;
 }) {
+  const isDeleted = Boolean(
+    (message as { deletedAt?: Date | string | null }).deletedAt,
+  );
   const senderName = sender?.displayName ?? "Unknown";
   const avatarLabel =
     (sender?.displayName ??
@@ -85,7 +92,8 @@ export function MessageBubble({
             variant={isOwnMessage ? "default" : "secondary"}
             className={cn(
               "mt-0.5",
-              message.status === "sending" && "opacity-60",
+              (message as UIMessage).status === "sending" && "opacity-60",
+              isDeleted && "opacity-70",
             )}
           >
             <span className="text-muted-foreground mb-0.5 flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap">
@@ -100,10 +108,16 @@ export function MessageBubble({
             </span>
 
             <BubbleContent>
-              <span className="wrap-break-words whitespace-pre-wrap">
-                {message.body}
-              </span>
-              {message.status === "failed" && (
+              {isDeleted ? (
+                <span className="text-muted-foreground wrap-break-words whitespace-pre-wrap italic">
+                  This message was deleted
+                </span>
+              ) : (
+                <span className="wrap-break-words whitespace-pre-wrap">
+                  {message.body}
+                </span>
+              )}
+              {(message as UIMessage).status === "failed" && (
                 <span className="text-destructive ml-2 text-xs">Failed</span>
               )}
             </BubbleContent>
@@ -111,27 +125,33 @@ export function MessageBubble({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem>
+        <ContextMenuItem disabled={isDeleted}>
           <ArrowBendUpLeftIcon />
           Reply
         </ContextMenuItem>
-        <ContextMenuItem>
+        <ContextMenuItem disabled={isDeleted}>
           <CopyIcon />
           Copy
         </ContextMenuItem>
-        <ContextMenuItem>
+        <ContextMenuItem disabled={isDeleted}>
           <PushPinIcon />
           Pin
         </ContextMenuItem>
-        {isOwnMessage && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem variant="destructive">
-              <TrashIcon />
-              Delete
-            </ContextMenuItem>
-          </>
-        )}
+        {isOwnMessage &&
+          !isDeleted &&
+          typeof message.id === "number" &&
+          onDelete && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                variant="destructive"
+                onClick={() => onDelete(message.id as number)}
+              >
+                <TrashIcon />
+                Delete
+              </ContextMenuItem>
+            </>
+          )}
       </ContextMenuContent>
     </ContextMenu>
   );

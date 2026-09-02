@@ -15,6 +15,7 @@ export function useMessageScroll(messageCount: number) {
   });
   const isNearBottomRef = useRef(true);
   const hasInitializedScrollRef = useRef(false);
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
     const list = messagesListRef.current;
@@ -32,11 +33,27 @@ export function useMessageScroll(messageCount: number) {
   }, []);
 
   useEffect(() => {
-    if (messageCount === 0) return;
+    if (messageCount === 0) {
+      prevCountRef.current = 0;
+      return;
+    }
 
-    if (!hasInitializedScrollRef.current || isNearBottomRef.current) {
+    if (!hasInitializedScrollRef.current) {
       rowVirtualizer.scrollToIndex(messageCount - 1, { align: "end" });
       hasInitializedScrollRef.current = true;
+      prevCountRef.current = messageCount;
+      setHasNewMessages(false);
+      return;
+    }
+
+    if (messageCount <= prevCountRef.current) {
+      prevCountRef.current = messageCount;
+      return;
+    }
+    prevCountRef.current = messageCount;
+
+    if (isNearBottomRef.current) {
+      rowVirtualizer.scrollToIndex(messageCount - 1, { align: "end" });
       setHasNewMessages(false);
     } else {
       setHasNewMessages(true);

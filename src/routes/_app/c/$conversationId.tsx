@@ -14,7 +14,12 @@ import { Button } from "~/components/ui/button";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
-import { localDb, upsertMessages, upsertUsers } from "~/lib/local-db";
+import {
+  localDb,
+  markLocalMessageDeleted,
+  upsertMessages,
+  upsertUsers,
+} from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
 import { cn } from "~/lib/utils";
 
@@ -28,6 +33,9 @@ function ConversationPage() {
   const [optimisticMessages, setOptimisticMessages] = useState<
     Array<UIMessage>
   >([]);
+  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<
+    Set<number>
+  >(new Set());
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -113,6 +121,72 @@ function ConversationPage() {
     }),
   );
 
+  const deleteMessage = useMutation(
+    trpc.conversations.deleteMessage.mutationOptions({
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries({
+          queryKey: trpc.conversations.messages.queryKey({
+            conversationId: convoId,
+          }),
+        });
+        const previousMessages = queryClient.getQueryData(
+          trpc.conversations.messages.queryKey({ conversationId: convoId }),
+        );
+        const previousOptimistic = [...optimisticMessages];
+        const previousDeletedIds = new Set(optimisticallyDeletedIds);
+        const localPrevPromise = localDb.messages.get(variables.messageId);
+        const deletedAt = new Date();
+        setOptimisticallyDeletedIds((prev) => {
+          const next = new Set(prev);
+          next.add(variables.messageId);
+          return next;
+        });
+        queryClient.setQueryData(
+          trpc.conversations.messages.queryKey({ conversationId: convoId }),
+          (current) =>
+            current?.map((m) =>
+              m.id === variables.messageId ? { ...m, deletedAt, body: "" } : m,
+            ) ?? current,
+        );
+        setOptimisticMessages((current) =>
+          current.map((m) =>
+            m.id === variables.messageId ? { ...m, deletedAt, body: "" } : m,
+          ),
+        );
+        void markLocalMessageDeleted(variables.messageId);
+        const localPrev = await localPrevPromise;
+        return {
+          previousMessages,
+          previousOptimistic,
+          previousDeletedIds,
+          localPrev,
+        };
+      },
+      onError: (_error, _variables, context) => {
+        if (context?.previousMessages) {
+          queryClient.setQueryData(
+            trpc.conversations.messages.queryKey({ conversationId: convoId }),
+            context.previousMessages,
+          );
+        }
+        if (context?.previousOptimistic) {
+          setOptimisticMessages(context.previousOptimistic);
+        }
+        if (context?.previousDeletedIds) {
+          setOptimisticallyDeletedIds(context.previousDeletedIds);
+        }
+        if (context?.localPrev) {
+          void localDb.messages.put(context.localPrev);
+        }
+      },
+      onSettled: () => {
+        void queryClient.invalidateQueries(
+          trpc.conversations.list.queryOptions(),
+        );
+      },
+    }),
+  );
+
   const handleSend = (value = body) => {
     const messageBody = value.trim();
     if (!messageBody) return;
@@ -126,16 +200,21 @@ function ConversationPage() {
         createdAt: new Date(),
         username: me.data?.username ?? null,
         status: "sending",
+        deletedAt: null,
       },
     ]);
     send.mutate({ conversationId: convoId, body: messageBody });
     setBody("");
   };
 
-  const renderedMessages = [
-    ...(localMessages?.length ? localMessages : (messages.data ?? [])),
-    ...optimisticMessages,
-  ];
+  const baseMessages = (
+    localMessages?.length ? localMessages : (messages.data ?? [])
+  ).map((m) =>
+    optimisticallyDeletedIds.has(m.id)
+      ? { ...m, deletedAt: new Date(), body: "" }
+      : m,
+  );
+  const renderedMessages = [...baseMessages, ...optimisticMessages];
   const users = [...(cachedUsers ?? []), ...(usersByUsername.data ?? [])];
   const latestMessage = [...renderedMessages]
     .reverse()
@@ -198,6 +277,12 @@ function ConversationPage() {
                   message={msg}
                   sender={users.find((user) => user.id === msg.senderId)}
                   isOwnMessage={me.data?.id === msg.senderId}
+                  onDelete={(messageId) =>
+                    deleteMessage.mutate({
+                      conversationId: convoId,
+                      messageId,
+                    })
+                  }
                 />
               </li>
             );

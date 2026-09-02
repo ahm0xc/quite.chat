@@ -8,6 +8,7 @@ export type LocalMessage = {
   senderId: number;
   createdAt: Date;
   username: string | null;
+  deletedAt?: Date | null;
 };
 
 export type LocalConversation = {
@@ -67,6 +68,17 @@ export async function pruneLocalMessages() {
 
 export async function upsertMessages(rows: Array<LocalMessage>) {
   await localDb.messages.bulkPut(rows);
+}
+
+export async function deleteLocalMessage(id: number) {
+  await localDb.messages.delete(id);
+}
+
+export async function markLocalMessageDeleted(id: number) {
+  await localDb.messages.update(id, {
+    deletedAt: new Date(),
+    body: "",
+  });
 }
 
 export async function upsertConversations(rows: Array<LocalConversation>) {

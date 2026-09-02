@@ -31,15 +31,22 @@ function RouteComponent() {
           params: { conversationId: String(data.conversationId) },
         });
       },
+      onError: () => setError("Could not start conversation"),
     }),
   );
 
   const handleMessage = async () => {
+    const normalized = username.trim().replace(/^@+/, "").trim();
+    if (!normalized) {
+      setError("Enter a username");
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
       const user = await queryClient.fetchQuery(
-        trpc.users.getByUsername.queryOptions({ username }),
+        trpc.users.getByUsername.queryOptions({ username: normalized }),
       );
       getOrCreate.mutate({ targetUserId: user.id });
     } catch {
@@ -87,7 +94,7 @@ function RouteComponent() {
           <Button
             variant="outline"
             aria-label="Message"
-            disabled={!username || loading || getOrCreate.isPending}
+            disabled={!username.trim() || loading || getOrCreate.isPending}
             onClick={handleMessage}
           >
             {loading ? <Spinner /> : "Message"}

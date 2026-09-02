@@ -1,5 +1,6 @@
+import { TRPCError } from "@trpc/server";
 import type { TRPCRouterRecord } from "@trpc/server";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "~/db";
@@ -23,9 +24,22 @@ export const usersRouter = {
   }),
 
   getByUsername: protectedProcedure
-    .input(z.object({ username: z.string() }))
+    .input(
+      z.object({
+        username: z
+          .string()
+          .trim()
+          .min(1)
+          .transform((s) => s.replace(/^@+/, "").trim()),
+      }),
+    )
     .query(async ({ input }) => {
-      return db
+      const username = input.username.trim().replace(/^@+/, "").trim();
+      if (!username) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      const rows = await db
         .select({
           id: users.id,
           username: users.username,
@@ -33,9 +47,13 @@ export const usersRouter = {
           avatarUrl: users.avatarUrl,
         })
         .from(users)
-        .where(eq(users.username, input.username))
-        .limit(1)
-        .then((rows) => rows[0]);
+        .where(sql`lower(${users.username}) = lower(${username})`)
+        .limit(1);
+
+      if (rows.length === 0 || !rows[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+      return rows[0];
     }),
 
   getByUsernames: protectedProcedure
@@ -49,6 +67,6 @@ export const usersRouter = {
           avatarUrl: users.avatarUrl,
         })
         .from(users)
-        .where(sql`${users.username} IN ${input.usernames}`),
+        .where(inArray(users.username, input.usernames)),
     ),
 } satisfies TRPCRouterRecord;

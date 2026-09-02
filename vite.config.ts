@@ -8,7 +8,7 @@ import { defineConfig, lazyPlugins } from "vite-plus";
 
 const config = defineConfig({
   server: {
-    allowedHosts: ["macbook.donkey-powan.ts.net", "two-rice-play.loca.lt"],
+    allowedHosts: ["macbook.donkey-powan.ts.net", "tame-rockets-ring.loca.lt"],
   },
   resolve: { tsconfigPaths: true },
   plugins: lazyPlugins(() => [

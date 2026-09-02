@@ -26,6 +26,13 @@ const enforceAuth = t.middleware(async ({ next }) => {
     .where(eq(users.clerkUserId, session.userId))
     .limit(1);
 
+  if (!results[0]) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "User not synced yet",
+    });
+  }
+
   return next({
     ctx: {
       userId: results[0].id,

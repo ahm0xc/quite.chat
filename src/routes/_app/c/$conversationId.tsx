@@ -7,8 +7,8 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useRef, useState } from "react";
 
-import { ChatBubble } from "~/components/chat-bubble";
-import type { UIMessage } from "~/components/chat-bubble";
+import { MessageBubble } from "~/components/message-bubble";
+import type { UIMessage } from "~/components/message-bubble";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
@@ -191,7 +191,7 @@ function ConversationPage() {
                 )}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                <ChatBubble
+                <MessageBubble
                   message={msg}
                   sender={users.find((user) => user.id === msg.senderId)}
                   isOwnMessage={me.data?.id === msg.senderId}

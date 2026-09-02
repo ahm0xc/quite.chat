@@ -8,7 +8,7 @@ export type UIMessage = Omit<Message, "id"> & {
   status?: "sending" | "sent" | "failed";
 };
 
-export function ChatBubble({
+export function MessageBubble({
   message,
   sender,
   isOwnMessage,

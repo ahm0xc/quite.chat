@@ -148,6 +148,7 @@ export function ConvoList() {
             key={convo.id}
             to="/c/$conversationId"
             params={{ conversationId: String(convo.id) }}
+            activeProps={{ className: "bg-accent font-medium" }}
             className="hover:bg-accent flex items-center gap-3 rounded-md px-3 py-2 transition-colors"
           >
             {convo.otherUser?.avatarUrl ? (

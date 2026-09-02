@@ -100,7 +100,9 @@ export function MessageBubble({
             </span>
 
             <BubbleContent>
-              {message.body}
+              <span className="wrap-break-words whitespace-pre-wrap">
+                {message.body}
+              </span>
               {message.status === "failed" && (
                 <span className="text-destructive ml-2 text-xs">Failed</span>
               )}

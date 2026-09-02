@@ -14,7 +14,7 @@ import { Input } from "~/components/ui/input";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
-import { localDb, upsertMessages } from "~/lib/local-db";
+import { localDb, upsertMessages, upsertUsers } from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
 import { cn } from "~/lib/utils";
 
@@ -54,6 +54,24 @@ function ConversationPage() {
         .sortBy("createdAt"),
     [convoId],
   );
+  const cachedUsers = useLiveQuery(() => localDb.users.toArray(), []);
+  const usernames = [
+    ...new Set(
+      [...(localMessages ?? []), ...(messages.data ?? [])]
+        .map((message) => message.username)
+        .filter((username): username is string => Boolean(username)),
+    ),
+  ];
+  const missingUsernames = usernames.filter(
+    (username) => !cachedUsers?.some((user) => user.username === username),
+  );
+  const usersByUsername = useQuery({
+    ...trpc.users.getByUsernames.queryOptions({ usernames: missingUsernames }),
+    enabled: isLoaded && isSignedIn === true && missingUsernames.length > 0,
+  });
+  useEffect(() => {
+    if (usersByUsername.data?.length) void upsertUsers(usersByUsername.data);
+  }, [usersByUsername.data]);
   useEffect(() => {
     if (messages.data)
       void syncMessages(
@@ -106,7 +124,7 @@ function ConversationPage() {
         body: messageBody,
         senderId: me.data?.id ?? 0,
         createdAt: new Date(),
-        username: null,
+        username: me.data?.username ?? null,
         status: "sending",
       },
     ]);
@@ -118,6 +136,7 @@ function ConversationPage() {
     ...(localMessages?.length ? localMessages : (messages.data ?? [])),
     ...optimisticMessages,
   ];
+  const users = [...(cachedUsers ?? []), ...(usersByUsername.data ?? [])];
   const latestMessage = [...renderedMessages]
     .reverse()
     .find((message) => typeof message.id === "number");
@@ -168,16 +187,14 @@ function ConversationPage() {
                 }}
                 className={cn(
                   "absolute top-0 left-0 flex w-full pb-8",
-                  me.data?.id === msg.senderId
-                    ? "justify-end"
-                    : "justify-start",
+                  "justify-start",
                 )}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
                 <ChatBubble
                   message={msg}
+                  sender={users.find((user) => user.id === msg.senderId)}
                   isOwnMessage={me.data?.id === msg.senderId}
-                  className={cn(me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
                 />
               </li>
             );

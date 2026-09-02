@@ -1,5 +1,5 @@
 import type { TRPCRouterRecord } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "~/db";
@@ -10,7 +10,12 @@ import { protectedProcedure } from "../init";
 export const usersRouter = {
   me: protectedProcedure.query(async ({ ctx }) => {
     return db
-      .select({ id: users.id })
+      .select({
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      })
       .from(users)
       .where(eq(users.id, ctx.userId))
       .limit(1)
@@ -32,4 +37,18 @@ export const usersRouter = {
         .limit(1)
         .then((rows) => rows[0]);
     }),
+
+  getByUsernames: protectedProcedure
+    .input(z.object({ usernames: z.array(z.string()).min(1) }))
+    .query(({ input }) =>
+      db
+        .select({
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(users)
+        .where(sql`${users.username} IN ${input.usernames}`),
+    ),
 } satisfies TRPCRouterRecord;

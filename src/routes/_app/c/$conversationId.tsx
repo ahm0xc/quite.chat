@@ -7,10 +7,10 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useRef, useState } from "react";
 
+import { Composer } from "~/components/composer";
 import { MessageBubble } from "~/components/message-bubble";
 import type { UIMessage } from "~/components/message-bubble";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
@@ -113,9 +113,9 @@ function ConversationPage() {
     }),
   );
 
-  const handleSend = () => {
-    if (!body.trim()) return;
-    const messageBody = body.trim();
+  const handleSend = (value = body) => {
+    const messageBody = value.trim();
+    if (!messageBody) return;
     setOptimisticMessages((current) => [
       ...current,
       {
@@ -217,18 +217,16 @@ function ConversationPage() {
             New messages
           </Button>
         )}
-        <Input
-          placeholder="Type a message..."
-          className="h-10"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          autoComplete="off"
+        <Composer
+          onChange={setBody}
+          onSubmit={handleSend}
+          disabled={send.isPending}
         />
         <Button
+          type="button"
           size="icon"
           className="h-10 w-10"
-          onClick={handleSend}
+          onClick={() => handleSend()}
           disabled={send.isPending || !body.trim()}
         >
           <ArrowUpIcon />

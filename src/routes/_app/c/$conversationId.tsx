@@ -70,7 +70,7 @@ function ConversationPage() {
     setOptimisticMessages((current) => [
       ...current,
       {
-        id: `temp-${crypto.randomUUID()}`,
+        id: `temp-${Math.random().toString(36).slice(2)}`,
         conversationId: convoId,
         body: messageBody,
         senderId: me.data?.id ?? 0,

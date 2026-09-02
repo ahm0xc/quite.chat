@@ -8,6 +8,26 @@ export type UIMessage = Omit<Message, "id"> & {
   status?: "sending" | "sent" | "failed";
 };
 
+function formatMessageTime(value: Date | string | number | null | undefined) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (isToday) return time;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${time} ${dd}/${mm}/${yy}`;
+}
+
 export function MessageBubble({
   message,
   sender,
@@ -49,11 +69,16 @@ export function MessageBubble({
         variant={isOwnMessage ? "default" : "secondary"}
         className={cn("mt-0.5", message.status === "sending" && "opacity-60")}
       >
-        {sender?.displayName && (
-          <span className="text-muted-foreground mb-0.5 text-xs leading-none">
-            {sender.displayName}
+        <span className="text-muted-foreground mb-0.5 flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap">
+          {sender?.displayName && (
+            <span className="shrink-0 whitespace-nowrap">
+              {sender.displayName}
+            </span>
+          )}
+          <span className="text-muted-foreground/70 shrink-0 whitespace-nowrap">
+            {formatMessageTime(message.createdAt)}
           </span>
-        )}
+        </span>
 
         <BubbleContent>
           {message.body}

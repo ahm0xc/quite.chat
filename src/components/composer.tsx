@@ -63,7 +63,7 @@ export function Composer({
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative min-h-10 flex-1 rounded-md border px-3 py-2 text-sm",
+          "relative min-h-10 flex-1 rounded-md border px-3 py-2 text-base md:text-sm",
           "focus-within:ring-2 focus-within:ring-ring",
           disabled && "cursor-not-allowed opacity-50",
         )}

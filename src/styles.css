@@ -175,4 +175,13 @@
   html {
     @apply font-sans;
   }
+  /* Prevent iOS auto-zoom on focus: inputs <16px trigger zoom */
+  @media screen and (max-width: 767px) {
+    input,
+    textarea,
+    select,
+    [contenteditable] {
+      font-size: 16px !important;
+    }
+  }
 }

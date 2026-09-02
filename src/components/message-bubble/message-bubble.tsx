@@ -68,90 +68,91 @@ export function MessageBubble({
       sender?.username ??
       message.username)?.[0]?.toUpperCase() ?? "?";
 
+  const bubble = (
+    <div className="ml-4 flex min-w-0 items-start gap-2">
+      {sender?.avatarUrl ? (
+        <img
+          src={sender.avatarUrl}
+          alt={`${senderName}'s avatar`}
+          className="h-8 w-8 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
+        >
+          {avatarLabel}
+        </div>
+      )}
+
+      <Bubble
+        align="start"
+        variant={isOwnMessage ? "default" : "secondary"}
+        className={cn(
+          "mt-0.5",
+          (message as UIMessage).status === "sending" && "opacity-60",
+          isDeleted && "opacity-70",
+        )}
+      >
+        <span className="text-muted-foreground mb-0.5 flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap">
+          {sender?.displayName && (
+            <span className="shrink-0 whitespace-nowrap">
+              {sender.displayName}
+            </span>
+          )}
+          <span className="text-muted-foreground/70 shrink-0 whitespace-nowrap">
+            {formatMessageTime(message.createdAt)}
+          </span>
+        </span>
+
+        <BubbleContent>
+          {isDeleted ? (
+            <span className="text-muted-foreground wrap-break-words whitespace-pre-wrap italic">
+              This message was deleted
+            </span>
+          ) : (
+            <span className="wrap-break-words whitespace-pre-wrap">
+              {message.body}
+            </span>
+          )}
+          {(message as UIMessage).status === "failed" && (
+            <span className="text-destructive ml-2 text-xs">Failed</span>
+          )}
+        </BubbleContent>
+      </Bubble>
+    </div>
+  );
+
+  if (isDeleted) return bubble;
+
   return (
     <ContextMenu>
-      <ContextMenuTrigger className="block">
-        <div className="ml-4 flex min-w-0 items-start gap-2">
-          {sender?.avatarUrl ? (
-            <img
-              src={sender.avatarUrl}
-              alt={`${senderName}'s avatar`}
-              className="h-8 w-8 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              aria-hidden="true"
-              className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-            >
-              {avatarLabel}
-            </div>
-          )}
-
-          <Bubble
-            align="start"
-            variant={isOwnMessage ? "default" : "secondary"}
-            className={cn(
-              "mt-0.5",
-              (message as UIMessage).status === "sending" && "opacity-60",
-              isDeleted && "opacity-70",
-            )}
-          >
-            <span className="text-muted-foreground mb-0.5 flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap">
-              {sender?.displayName && (
-                <span className="shrink-0 whitespace-nowrap">
-                  {sender.displayName}
-                </span>
-              )}
-              <span className="text-muted-foreground/70 shrink-0 whitespace-nowrap">
-                {formatMessageTime(message.createdAt)}
-              </span>
-            </span>
-
-            <BubbleContent>
-              {isDeleted ? (
-                <span className="text-muted-foreground wrap-break-words whitespace-pre-wrap italic">
-                  This message was deleted
-                </span>
-              ) : (
-                <span className="wrap-break-words whitespace-pre-wrap">
-                  {message.body}
-                </span>
-              )}
-              {(message as UIMessage).status === "failed" && (
-                <span className="text-destructive ml-2 text-xs">Failed</span>
-              )}
-            </BubbleContent>
-          </Bubble>
-        </div>
-      </ContextMenuTrigger>
+      <ContextMenuTrigger className="block">{bubble}</ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem disabled={isDeleted}>
+        <ContextMenuItem>
           <ArrowBendUpLeftIcon />
           Reply
         </ContextMenuItem>
-        <ContextMenuItem disabled={isDeleted}>
+        <ContextMenuItem>
           <CopyIcon />
           Copy
         </ContextMenuItem>
-        <ContextMenuItem disabled={isDeleted}>
+        <ContextMenuItem>
           <PushPinIcon />
           Pin
         </ContextMenuItem>
-        {isOwnMessage &&
-          !isDeleted &&
-          typeof message.id === "number" &&
-          onDelete && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                variant="destructive"
-                onClick={() => onDelete(message.id as number)}
-              >
-                <TrashIcon />
-                Delete
-              </ContextMenuItem>
-            </>
-          )}
+        {isOwnMessage && typeof message.id === "number" && onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => onDelete(message.id as number)}
+            >
+              <TrashIcon />
+              Delete
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

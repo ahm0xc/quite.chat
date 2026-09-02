@@ -237,11 +237,13 @@ export function ConvoList() {
                     <span className="min-w-0 truncate">
                       {convo.lastMessage.body}
                     </span>
-                    {"hasUnread" in convo && convo.hasUnread === true && (
+                    {"unreadCount" in convo && (convo.unreadCount ?? 0) > 0 && (
                       <span
-                        className="size-2 shrink-0 rounded-full bg-blue-500"
-                        aria-label="Unread message"
-                      />
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white"
+                        aria-label={`${convo.unreadCount} unread messages`}
+                      >
+                        {convo.unreadCount}
+                      </span>
                     )}
                   </p>
                 )}

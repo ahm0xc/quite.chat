@@ -85,6 +85,13 @@ export const conversationsRouter = {
         const otherMember = members.find((m) => m.userId !== ctx.userId);
         const lastMessage = lastMsgByConvo.get(convoId) ?? null;
         const currentMember = members.find((m) => m.userId === ctx.userId);
+        const lastReadMessageId = currentMember?.lastReadMessageId ?? 0;
+        const unreadCount = lastMessages.filter(
+          (message) =>
+            message.conversationId === convoId &&
+            message.senderId !== ctx.userId &&
+            message.id > lastReadMessageId,
+        ).length;
         return {
           id: convoId,
           type: "direct" as const,
@@ -96,10 +103,8 @@ export const conversationsRouter = {
               }
             : null,
           lastMessage,
-          hasUnread:
-            lastMessage !== null &&
-            lastMessage.senderId !== ctx.userId &&
-            lastMessage.id > (currentMember?.lastReadMessageId ?? 0),
+          unreadCount,
+          hasUnread: unreadCount > 0,
         };
       })
       .sort((a, b) => {

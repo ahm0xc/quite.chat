@@ -24,7 +24,7 @@ export type LocalConversation = {
     createdAt: Date;
     senderId: number;
   } | null;
-  hasUnread?: boolean;
+  unreadCount?: number;
 };
 
 export type LocalUser = {
@@ -83,12 +83,14 @@ export async function updateConversationFromMessage(
   await localDb.conversations.put({
     ...conversation,
     lastMessage: message,
-    hasUnread: hasUnread || conversation.hasUnread,
+    unreadCount: hasUnread
+      ? (conversation.unreadCount ?? 0) + 1
+      : (conversation.unreadCount ?? 0),
   });
 }
 
 export async function markConversationRead(conversationId: number) {
-  await localDb.conversations.update(conversationId, { hasUnread: false });
+  await localDb.conversations.update(conversationId, { unreadCount: 0 });
 }
 
 export async function upsertUsers(rows: Array<LocalUser>) {

@@ -121,7 +121,7 @@ function ConversationPage() {
   const latestMessage = [...renderedMessages]
     .reverse()
     .find((message) => typeof message.id === "number");
-  const { hasNewMessages, messagesEndRef, messagesListRef, scrollToLatest } =
+  const { hasNewMessages, messagesListRef, rowVirtualizer, scrollToLatest } =
     useMessageScroll(renderedMessages.length);
   useEffect(() => {
     const message = latestMessage;
@@ -149,25 +149,40 @@ function ConversationPage() {
 
       <ul
         ref={messagesListRef}
-        className="relative flex min-h-0 w-full flex-1 flex-col gap-8 overflow-y-scroll pt-12 pb-6 before:min-h-0 before:flex-1 before:content-['']"
+        className="relative min-h-0 w-full flex-1 overflow-y-scroll pt-4 pb-6"
       >
-        {renderedMessages.map((msg) => (
-          <li
-            key={msg.id}
-            className={cn(
-              "flex w-full",
-              me.data?.id === msg.senderId ? "justify-end" : "justify-start",
-            )}
-            ref={msg.id === latestMessage?.id ? latestMessageRef : undefined}
-          >
-            <ChatBubble
-              message={msg}
-              isOwnMessage={me.data?.id === msg.senderId}
-              className={cn("", me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
-            />
-          </li>
-        ))}
-        <li ref={messagesEndRef} aria-hidden="true" className="h-px shrink-0" />
+        <div
+          className="relative w-full"
+          style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const msg = renderedMessages[virtualRow.index];
+            return (
+              <li
+                key={msg.id}
+                data-index={virtualRow.index}
+                ref={(element) => {
+                  rowVirtualizer.measureElement(element);
+                  if (msg.id === latestMessage?.id)
+                    latestMessageRef.current = element;
+                }}
+                className={cn(
+                  "absolute top-0 left-0 flex w-full pb-8",
+                  me.data?.id === msg.senderId
+                    ? "justify-end"
+                    : "justify-start",
+                )}
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <ChatBubble
+                  message={msg}
+                  isOwnMessage={me.data?.id === msg.senderId}
+                  className={cn(me.data?.id === msg.senderId ? "mr-4" : "ml-4")}
+                />
+              </li>
+            );
+          })}
+        </div>
       </ul>
 
       <div className="relative flex gap-2 border-t p-4">

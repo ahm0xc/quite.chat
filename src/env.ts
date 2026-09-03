@@ -14,6 +14,10 @@ const serverSchema = z.object({
   CLERK_SIGN_UP_URL: z.string().default("/sign-up"),
   PUSHER_APP_ID: z.string().min(1),
   PUSHER_SECRET: z.string().min(1),
+  R2_ACCOUNT_ID: z.string().min(1),
+  R2_ACCESS_KEY_ID: z.string().min(1),
+  R2_SECRET_ACCESS_KEY: z.string().min(1),
+  R2_BUCKET_NAME: z.string().min(1),
 });
 
 const isClient = typeof window !== "undefined";

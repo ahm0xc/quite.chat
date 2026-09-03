@@ -9,6 +9,7 @@ import {
   updateConversationFromMessage,
   upsertMessages,
 } from "~/lib/local-db";
+import { getMessagePreview } from "~/lib/message-preview";
 
 const pusher = new Pusher(env.VITE_PUSHER_KEY, {
   cluster: env.VITE_PUSHER_CLUSTER,
@@ -79,7 +80,13 @@ export function useConversationsRealtime(
         void upsertMessages([normalizedMessage]);
         void updateConversationFromMessage(
           conversationId,
-          normalizedMessage,
+          {
+            ...normalizedMessage,
+            body: getMessagePreview(
+              normalizedMessage.body,
+              normalizedMessage.attachments,
+            ),
+          },
           conversationId !== currentConversationId &&
             message.senderId !== currentUserId,
         );
@@ -125,4 +132,12 @@ type MessageEvent = {
   senderId: number;
   createdAt: string | Date;
   username: string | null;
+  attachments: Array<{
+    id: number;
+    messageId: number;
+    originalName: string | null;
+    mimeType: string;
+    sizeBytes: number;
+    metadata: Record<string, unknown> | null;
+  }>;
 };

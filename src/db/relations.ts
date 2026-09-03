@@ -43,6 +43,7 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     replies: r.many.messages({ alias: "message_replies" }),
     reactions: r.many.messageReactions(),
+    attachments: r.many.messageAttachments(),
   },
   messageReactions: {
     message: r.one.messages({
@@ -52,6 +53,12 @@ export const relations = defineRelations(schema, (r) => ({
     user: r.one.users({
       from: r.messageReactions.userId,
       to: r.users.id,
+    }),
+  },
+  messageAttachments: {
+    message: r.one.messages({
+      from: r.messageAttachments.messageId,
+      to: r.messages.id,
     }),
   },
 }));

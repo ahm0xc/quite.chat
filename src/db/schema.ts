@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   unique,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const conversationType = pgEnum("conversation_type", [
@@ -85,7 +86,7 @@ export const messages = pgTable(
     senderId: integer("sender_id")
       .notNull()
       .references(() => users.id),
-    body: text().notNull(),
+    body: text().notNull().default(""),
     replyToMessageId: integer("reply_to_message_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -98,6 +99,26 @@ export const messages = pgTable(
       table.id,
     ),
     index("messages_reply_to_idx").on(table.replyToMessageId),
+  ],
+);
+
+export const messageAttachments = pgTable(
+  "message_attachments",
+  {
+    id: serial().primaryKey(),
+    messageId: integer("message_id")
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    objectKey: text("object_key").notNull(),
+    originalName: text("original_name"),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    metadata: jsonb().$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("message_attachments_object_key_unique").on(table.objectKey),
+    index("message_attachments_message_idx").on(table.messageId),
   ],
 );
 

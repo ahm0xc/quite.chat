@@ -1,6 +1,16 @@
 import Dexie from "dexie";
 import type { Table } from "dexie";
 
+export type LocalAttachment = {
+  id: number;
+  messageId: number;
+  originalName: string | null;
+  mimeType: string;
+  sizeBytes: number;
+  metadata: Record<string, unknown> | null;
+  url?: string;
+};
+
 export type LocalMessage = {
   id: number;
   conversationId: number;
@@ -9,6 +19,7 @@ export type LocalMessage = {
   createdAt: Date;
   username: string | null;
   deletedAt?: Date | null;
+  attachments?: Array<LocalAttachment>;
 };
 
 export type LocalConversation = {

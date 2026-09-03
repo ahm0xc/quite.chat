@@ -17,6 +17,8 @@ import type { RouterOutputs } from "~/integrations/trpc/router";
 import type { LocalMessage } from "~/lib/local-db";
 import { cn } from "~/lib/utils";
 
+import { ImageGrid } from "./image-grid";
+
 export type Message = RouterOutputs["conversations"]["messages"][number];
 export type UIMessage = Omit<Message, "id" | "deletedAt"> & {
   id: number | string;
@@ -67,9 +69,11 @@ export function MessageBubble({
     (sender?.displayName ??
       sender?.username ??
       message.username)?.[0]?.toUpperCase() ?? "?";
+  const attachments =
+    "attachments" in message ? (message.attachments ?? []) : [];
 
   const bubble = (
-    <div className="ml-4 flex min-w-0 items-start gap-2">
+    <div className="mr-4 ml-4 flex min-w-0 items-start gap-2">
       {sender?.avatarUrl ? (
         <img
           src={sender.avatarUrl}
@@ -85,16 +89,13 @@ export function MessageBubble({
         </div>
       )}
 
-      <Bubble
-        align="start"
-        variant={isOwnMessage ? "default" : "secondary"}
-        className={cn(
-          "mt-0.5",
-          (message as UIMessage).status === "sending" && "opacity-60",
-          isDeleted && "opacity-70",
-        )}
-      >
-        <span className="text-muted-foreground mb-0.5 flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap">
+      <div className="flex min-w-0 flex-col items-start">
+        <span
+          className={cn(
+            "text-muted-foreground flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap",
+            attachments.length > 0 && !isDeleted ? "mb-1" : "mb-0.5",
+          )}
+        >
           {sender?.displayName && (
             <span className="shrink-0 whitespace-nowrap">
               {sender.displayName}
@@ -105,21 +106,52 @@ export function MessageBubble({
           </span>
         </span>
 
-        <BubbleContent>
-          {isDeleted ? (
-            <span className="text-muted-foreground wrap-break-words whitespace-pre-wrap italic">
-              This message was deleted
-            </span>
-          ) : (
-            <span className="wrap-break-words whitespace-pre-wrap">
-              {message.body}
-            </span>
-          )}
-          {(message as UIMessage).status === "failed" && (
-            <span className="text-destructive ml-2 text-xs">Failed</span>
-          )}
-        </BubbleContent>
-      </Bubble>
+        {!isDeleted && attachments.length > 0 && (
+          <div className="flex max-w-full flex-col gap-2">
+            <ImageGrid attachments={attachments} />
+            {attachments
+              .filter((attachment) => !attachment.mimeType.startsWith("image/"))
+              .map((attachment) => (
+                <a
+                  key={attachment.id}
+                  href={attachment.url}
+                  download={attachment.originalName ?? undefined}
+                  className="text-primary underline"
+                >
+                  {attachment.originalName ?? "Download file"}
+                </a>
+              ))}
+          </div>
+        )}
+
+        {(isDeleted || Boolean(message.body)) && (
+          <Bubble
+            align="start"
+            variant={isOwnMessage ? "default" : "secondary"}
+            className={cn(
+              "mt-1",
+              (message as UIMessage).status === "sending" && "opacity-60",
+              isDeleted && "opacity-70",
+              attachments.length > 0 && !isDeleted && "mt-2",
+            )}
+          >
+            <BubbleContent>
+              {isDeleted ? (
+                <span className="text-muted-foreground wrap-break-words whitespace-pre-wrap italic">
+                  This message was deleted
+                </span>
+              ) : (
+                <span className="wrap-break-words whitespace-pre-wrap">
+                  {message.body}
+                </span>
+              )}
+              {(message as UIMessage).status === "failed" && (
+                <span className="text-destructive ml-2 text-xs">Failed</span>
+              )}
+            </BubbleContent>
+          </Bubble>
+        )}
+      </div>
     </div>
   );
 

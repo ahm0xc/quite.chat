@@ -8,12 +8,38 @@ import {
   conversations,
   conversationMembers,
   messages,
+  messageAttachments,
 } from "~/db/schema";
+import { getMessagePreview } from "~/lib/message-preview";
 import { pusherServer } from "~/lib/pusher-server";
+import { createR2DownloadUrl, createR2UploadUrl } from "~/lib/r2";
 
 import { protectedProcedure } from "../init";
 
 export const conversationsRouter = {
+  createUploadUrl: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.number(),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().regex(/^image\//),
+        sizeBytes: z
+          .number()
+          .int()
+          .positive()
+          .max(10 * 1024 * 1024),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertConversationMember(ctx.userId, input.conversationId);
+      const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const objectKey = `conversations/${input.conversationId}/users/${ctx.userId}/uploads/${crypto.randomUUID()}-${safeName}`;
+      return {
+        objectKey,
+        uploadUrl: await createR2UploadUrl(objectKey, input.mimeType),
+      };
+    }),
+
   list: protectedProcedure.query(async ({ ctx }) => {
     const convoIds = await db
       .select({ conversationId: conversationMembers.conversationId })
@@ -57,6 +83,27 @@ export const conversationsRouter = {
       .from(messages)
       .where(sql`${messages.conversationId} IN ${convoIds}`)
       .orderBy(desc(messages.createdAt));
+    const messageAttachmentsByMessage = new Map<
+      number,
+      Array<{ mimeType: string }>
+    >();
+    if (lastMessages.length) {
+      const attachmentRows = await db
+        .select({
+          messageId: messageAttachments.messageId,
+          mimeType: messageAttachments.mimeType,
+        })
+        .from(messageAttachments)
+        .where(
+          sql`${messageAttachments.messageId} IN ${lastMessages.map((message) => message.id)}`,
+        );
+      for (const attachment of attachmentRows) {
+        const current =
+          messageAttachmentsByMessage.get(attachment.messageId) ?? [];
+        current.push(attachment);
+        messageAttachmentsByMessage.set(attachment.messageId, current);
+      }
+    }
 
     const lastMsgByConvo = new Map<
       number,
@@ -66,7 +113,12 @@ export const conversationsRouter = {
       if (!lastMsgByConvo.has(msg.conversationId)) {
         lastMsgByConvo.set(msg.conversationId, {
           id: msg.id,
-          body: msg.deletedAt ? "This message was deleted" : msg.body,
+          body: msg.deletedAt
+            ? "This message was deleted"
+            : getMessagePreview(
+                msg.body,
+                messageAttachmentsByMessage.get(msg.id),
+              ),
           createdAt: msg.createdAt,
           senderId: msg.senderId,
         });
@@ -243,7 +295,28 @@ export const conversationsRouter = {
         .from(messages)
         .innerJoin(users, eq(messages.senderId, users.id))
         .where(eq(messages.conversationId, input.conversationId))
-        .orderBy(messages.createdAt);
+        .orderBy(messages.createdAt)
+        .then(async (rows) => {
+          const ids = rows.map((row) => row.id);
+          if (!ids.length) return rows;
+          const attachments = await db
+            .select()
+            .from(messageAttachments)
+            .where(sql`${messageAttachments.messageId} IN ${ids}`);
+          return Promise.all(
+            rows.map(async (row) => ({
+              ...row,
+              attachments: await Promise.all(
+                attachments
+                  .filter((attachment) => attachment.messageId === row.id)
+                  .map(async ({ objectKey, ...attachment }) => ({
+                    ...attachment,
+                    url: await createR2DownloadUrl(objectKey),
+                  })),
+              ),
+            })),
+          );
+        });
     }),
 
   deleteMessage: protectedProcedure
@@ -276,15 +349,48 @@ export const conversationsRouter = {
     }),
 
   sendMessage: protectedProcedure
-    .input(z.object({ conversationId: z.number(), body: z.string().min(1) }))
+    .input(
+      z
+        .object({
+          conversationId: z.number(),
+          body: z.string().max(5000).default(""),
+          attachments: z
+            .array(
+              z.object({
+                objectKey: z.string().min(1),
+                originalName: z.string().max(255).optional(),
+                mimeType: z.string().regex(/^image\//),
+                sizeBytes: z
+                  .number()
+                  .int()
+                  .positive()
+                  .max(10 * 1024 * 1024),
+                metadata: z.record(z.string(), z.unknown()).optional(),
+              }),
+            )
+            .max(10)
+            .default([]),
+        })
+        .refine(
+          (value) =>
+            value.body.trim().length > 0 || value.attachments.length > 0,
+          "Message cannot be empty",
+        ),
+    )
     .mutation(async ({ ctx, input }) => {
       await assertConversationMember(ctx.userId, input.conversationId);
+      const allowedPrefix = `conversations/${input.conversationId}/users/${ctx.userId}/uploads/`;
+      for (const attachment of input.attachments) {
+        if (!attachment.objectKey.startsWith(allowedPrefix)) {
+          throw new Error("Invalid attachment ownership");
+        }
+      }
       const [inserted] = await db
         .insert(messages)
         .values({
           conversationId: input.conversationId,
           senderId: ctx.userId,
-          body: input.body,
+          body: input.body.trim(),
         })
         .returning({
           id: messages.id,
@@ -294,6 +400,19 @@ export const conversationsRouter = {
           createdAt: messages.createdAt,
           deletedAt: messages.deletedAt,
         });
+
+      if (input.attachments.length) {
+        await db.insert(messageAttachments).values(
+          input.attachments.map((attachment) => ({
+            messageId: inserted.id,
+            objectKey: attachment.objectKey,
+            originalName: attachment.originalName,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+            metadata: attachment.metadata,
+          })),
+        );
+      }
 
       const [msg] = await db
         .select({
@@ -310,13 +429,31 @@ export const conversationsRouter = {
         .where(eq(messages.id, inserted.id))
         .limit(1);
 
-      await pusherServer.trigger(
-        `private-conversation-${input.conversationId}`,
-        "message.created",
-        msg,
-      );
+      const attachmentRows = await db
+        .select()
+        .from(messageAttachments)
+        .where(eq(messageAttachments.messageId, inserted.id));
 
-      return msg;
+      const eventMessage = {
+        ...msg,
+        attachments: await Promise.all(
+          attachmentRows.map(async ({ objectKey, ...attachment }) => ({
+            ...attachment,
+            url: await createR2DownloadUrl(objectKey),
+          })),
+        ),
+      };
+      try {
+        await pusherServer.trigger(
+          `private-conversation-${input.conversationId}`,
+          "message.created",
+          eventMessage,
+        );
+      } catch (error) {
+        console.error("Failed to publish message.created event", error);
+      }
+
+      return eventMessage;
     }),
 } satisfies TRPCRouterRecord;
 

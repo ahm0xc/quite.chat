@@ -5,7 +5,7 @@ import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Composer } from "~/components/composer";
 import { MessageBubble } from "~/components/message-bubble";
@@ -14,6 +14,7 @@ import { Button } from "~/components/ui/button";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
+import { prepareImage } from "~/lib/image-processing";
 import {
   localDb,
   markLocalMessageDeleted,
@@ -30,6 +31,19 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 function ConversationPage() {
   const { conversationId } = Route.useParams();
   const [body, setBody] = useState("");
+  const [files, setFiles] = useState<Array<File>>([]);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const dragDepth = useRef(0);
+  const filePreviews = useMemo(
+    () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [files],
+  );
+  useEffect(
+    () => () => {
+      for (const preview of filePreviews) URL.revokeObjectURL(preview.url);
+    },
+    [filePreviews],
+  );
   const [optimisticMessages, setOptimisticMessages] = useState<
     Array<UIMessage>
   >([]);
@@ -124,8 +138,16 @@ function ConversationPage() {
             item.body === variables.body ? { ...item, status: "failed" } : item,
           ),
         );
+        void queryClient.invalidateQueries(
+          trpc.conversations.messages.queryOptions({
+            conversationId: convoId,
+          }),
+        );
       },
     }),
+  );
+  const uploadUrl = useMutation(
+    trpc.conversations.createUploadUrl.mutationOptions(),
   );
 
   const deleteMessage = useMutation(
@@ -196,7 +218,9 @@ function ConversationPage() {
 
   const handleSend = (value = body) => {
     const messageBody = value.trim();
-    if (!messageBody) return;
+    if (!messageBody && !files.length) return;
+    const selectedFiles = files;
+    setFiles([]);
     setOptimisticMessages((current) => [
       ...current,
       {
@@ -208,10 +232,87 @@ function ConversationPage() {
         username: me.data?.username ?? null,
         status: "sending",
         deletedAt: null,
+        attachments: selectedFiles.map((file, index) => ({
+          id: -(index + 1),
+          messageId: 0,
+          originalName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          metadata: null,
+          url: URL.createObjectURL(file),
+        })),
       },
     ]);
-    send.mutate({ conversationId: convoId, body: messageBody });
+    void (async () => {
+      const attachments = [];
+      for (const file of selectedFiles) {
+        const prepared = await prepareImage(file);
+        const upload = await uploadUrl.mutateAsync({
+          conversationId: convoId,
+          fileName: prepared.fileName,
+          mimeType: prepared.mimeType,
+          sizeBytes: prepared.blob.size,
+        });
+        const response = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": prepared.mimeType },
+          body: prepared.blob,
+        });
+        if (!response.ok) throw new Error("File upload failed");
+        attachments.push({
+          objectKey: upload.objectKey,
+          originalName: prepared.originalName,
+          mimeType: prepared.mimeType,
+          sizeBytes: prepared.blob.size,
+          metadata: {
+            width: prepared.width,
+            height: prepared.height,
+            originalMimeType: prepared.originalMimeType,
+            originalSizeBytes: prepared.originalSizeBytes,
+          },
+        });
+      }
+      send.mutate({ conversationId: convoId, body: messageBody, attachments });
+    })().catch(() => {
+      setOptimisticMessages((current) =>
+        current.map((item) =>
+          item.body === messageBody ? { ...item, status: "failed" } : item,
+        ),
+      );
+    });
     setBody("");
+  };
+
+  const addDroppedFiles = (fileList: FileList | null) => {
+    const droppedFiles = Array.from(fileList ?? []).filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (droppedFiles.length)
+      setFiles((current) => [...current, ...droppedFiles]);
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragDepth.current += 1;
+    if (event.dataTransfer.types.includes("Files")) {
+      setIsDraggingFiles(true);
+    }
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setIsDraggingFiles(false);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragDepth.current = 0;
+    setIsDraggingFiles(false);
+    addDroppedFiles(event.dataTransfer.files);
   };
 
   const baseMessages = (
@@ -249,7 +350,23 @@ function ConversationPage() {
   }, [convoId, isLoaded, isSignedIn, latestMessage, markRead, messagesListRef]);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div
+      className="relative flex h-dvh flex-col overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragOver={(event) => event.preventDefault()}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDraggingFiles && (
+        <div className="bg-background/80 pointer-events-none absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="border-primary bg-primary/10 rounded-lg border-2 border-dashed px-8 py-6 text-center">
+            <p className="text-lg font-medium">Drop images to attach</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              They will appear above the composer
+            </p>
+          </div>
+        </div>
+      )}
       <ConvoHeader conversationId={conversationId} />
 
       <ul
@@ -297,7 +414,7 @@ function ConversationPage() {
         </div>
       </ul>
 
-      <div className="relative flex gap-2 border-t p-4">
+      <div className="relative border-t">
         {hasNewMessages && (
           <Button
             type="button"
@@ -309,20 +426,54 @@ function ConversationPage() {
             New messages
           </Button>
         )}
-        <Composer
-          onChange={setBody}
-          onSubmit={handleSend}
-          disabled={send.isPending}
-        />
-        <Button
-          type="button"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => handleSend()}
-          disabled={send.isPending || !body.trim()}
-        >
-          <ArrowUpIcon />
-        </Button>
+
+        {filePreviews.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto px-3 pt-3">
+            {filePreviews.map((preview, index) => (
+              <div
+                key={`${preview.file.name}-${preview.file.lastModified}-${index}`}
+                className="bg-muted relative h-20 w-20 shrink-0 overflow-hidden rounded-md border"
+              >
+                <img
+                  src={preview.url}
+                  alt={preview.file.name}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove ${preview.file.name}`}
+                  className="bg-background/90 absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none shadow"
+                  onClick={() =>
+                    setFiles((current) => current.filter((_, i) => i !== index))
+                  }
+                >
+                  ×{" "}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 px-3 pt-3 pb-3">
+          <Composer
+            onChange={setBody}
+            onSubmit={handleSend}
+            disabled={send.isPending}
+            onFilesSelected={(selected) =>
+              setFiles((current) => [...current, ...selected])
+            }
+          />
+
+          <Button
+            type="button"
+            size="icon"
+            className="h-10 w-10"
+            onClick={() => handleSend()}
+            disabled={send.isPending || (!body.trim() && !files.length)}
+          >
+            <ArrowUpIcon />
+          </Button>
+        </div>
       </div>
     </div>
   );

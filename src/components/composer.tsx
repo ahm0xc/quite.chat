@@ -12,6 +12,7 @@ type ComposerProps = {
   onChange: (value: string) => void;
   onSubmit: (value: string) => void;
   disabled?: boolean;
+  onFilesSelected?: (files: Array<File>) => void;
 };
 
 const initialConfig = {
@@ -58,6 +59,7 @@ export function Composer({
   onChange,
   onSubmit,
   disabled = false,
+  onFilesSelected,
 }: ComposerProps) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
@@ -68,6 +70,17 @@ export function Composer({
           disabled && "cursor-not-allowed opacity-50",
         )}
       >
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          id="message-attachments"
+          onChange={(event) => {
+            onFilesSelected?.(Array.from(event.target.files ?? []));
+            event.currentTarget.value = "";
+          }}
+        />
         <RichTextPlugin
           contentEditable={
             <ContentEditable
@@ -89,6 +102,12 @@ export function Composer({
           }}
         />
         <SubmitOnEnterPlugin onSubmit={onSubmit} />
+        <label
+          htmlFor="message-attachments"
+          className="text-muted-foreground hover:text-foreground absolute right-3 bottom-2 cursor-pointer text-xs"
+        >
+          Attach
+        </label>
       </div>
     </LexicalComposer>
   );

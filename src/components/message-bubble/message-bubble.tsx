@@ -51,6 +51,7 @@ export function MessageBubble({
   sender,
   isOwnMessage,
   onDelete,
+  conversationId,
 }: {
   message: UIMessage | LocalMessage;
   sender?: {
@@ -60,6 +61,7 @@ export function MessageBubble({
   };
   isOwnMessage: boolean;
   onDelete?: (messageId: number) => void;
+  conversationId?: number;
 }) {
   const isDeleted = Boolean(
     (message as { deletedAt?: Date | string | null }).deletedAt,
@@ -107,8 +109,17 @@ export function MessageBubble({
         </span>
 
         {!isDeleted && attachments.length > 0 && (
-          <div className="flex max-w-full flex-col gap-2">
-            <ImageGrid attachments={attachments} />
+          <div
+            className={cn(
+              "flex max-w-full flex-col gap-2",
+              (message as UIMessage).status === "sending" && "opacity-60",
+              (message as UIMessage).status === "failed" && "opacity-60",
+            )}
+          >
+            <ImageGrid
+              attachments={attachments}
+              conversationId={conversationId}
+            />
             {attachments
               .filter((attachment) => !attachment.mimeType.startsWith("image/"))
               .map((attachment) => (

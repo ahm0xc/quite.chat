@@ -6,6 +6,7 @@ import { env } from "~/env";
 import { useTRPC } from "~/integrations/trpc/react";
 import {
   markLocalMessageDeleted,
+  stampWillExpireAt,
   updateConversationFromMessage,
   upsertMessages,
 } from "~/lib/local-db";
@@ -30,7 +31,9 @@ export function useConversationRealtime(conversationId: number) {
         ...message,
         createdAt: new Date(message.createdAt),
       };
-      void upsertMessages([{ ...normalizedMessage, conversationId }]);
+      void upsertMessages([
+        stampWillExpireAt({ ...normalizedMessage, conversationId }),
+      ]);
     });
 
     channel.bind("message.deleted", (data: { id: number }) => {
@@ -77,7 +80,7 @@ export function useConversationsRealtime(
           conversationId,
           createdAt: new Date(message.createdAt),
         };
-        void upsertMessages([normalizedMessage]);
+        void upsertMessages([stampWillExpireAt(normalizedMessage)]);
         void updateConversationFromMessage(
           conversationId,
           {
@@ -139,5 +142,7 @@ type MessageEvent = {
     mimeType: string;
     sizeBytes: number;
     metadata: Record<string, unknown> | null;
+    objectKey?: string;
+    url?: string;
   }>;
 };

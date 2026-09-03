@@ -21,6 +21,7 @@ import {
   upsertMessages,
   upsertUsers,
 } from "~/lib/local-db";
+import type { LocalMessage } from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
 import { cn } from "~/lib/utils";
 
@@ -102,13 +103,24 @@ function ConversationPage() {
     if (usersByUsername.data?.length) void upsertUsers(usersByUsername.data);
   }, [usersByUsername.data]);
   useEffect(() => {
-    if (messages.data)
+    if (messages.data) {
+      const data = messages.data as Array<
+        (typeof messages.data)[number] & {
+          attachments?: Array<{ url?: string; willExpireAt?: Date }>;
+        }
+      >;
       void syncMessages(
-        messages.data.map((message) => ({
+        data.map((message) => ({
           ...message,
           conversationId: convoId,
-        })),
+          attachments: message.attachments?.map((a) =>
+            a.url && !(a as { willExpireAt?: Date }).willExpireAt
+              ? { ...a, willExpireAt: new Date(Date.now() + 15 * 60 * 1000) }
+              : a,
+          ),
+        })) as unknown as Array<LocalMessage>,
       );
+    }
   }, [messages.data, convoId]);
   useConversationRealtime(convoId);
 
@@ -127,7 +139,25 @@ function ConversationPage() {
             return current;
           },
         );
-        void upsertMessages([{ ...message, conversationId: convoId }]);
+        void upsertMessages([
+          {
+            ...message,
+            conversationId: convoId,
+            attachments: (
+              message.attachments as Array<{
+                url?: string;
+                willExpireAt?: Date;
+              }>
+            ).map((a) =>
+              a.url && !a.willExpireAt
+                ? {
+                    ...a,
+                    willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
+                  }
+                : a,
+            ),
+          },
+        ] as unknown as Array<LocalMessage>);
         void queryClient.invalidateQueries(
           trpc.conversations.list.queryOptions(),
         );
@@ -220,67 +250,88 @@ function ConversationPage() {
     const messageBody = value.trim();
     if (!messageBody && !files.length) return;
     const selectedFiles = files;
+    const tempId = `temp-${Math.random().toString(36).slice(2)}`;
     setFiles([]);
-    setOptimisticMessages((current) => [
-      ...current,
-      {
-        id: `temp-${Math.random().toString(36).slice(2)}`,
-        conversationId: convoId,
-        body: messageBody,
-        senderId: me.data?.id ?? 0,
-        createdAt: new Date(),
-        username: me.data?.username ?? null,
-        status: "sending",
-        deletedAt: null,
-        attachments: selectedFiles.map((file, index) => ({
-          id: -(index + 1),
-          messageId: 0,
-          originalName: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-          metadata: null,
-          url: URL.createObjectURL(file),
-        })),
-      },
-    ]);
-    void (async () => {
-      const attachments = [];
-      for (const file of selectedFiles) {
-        const prepared = await prepareImage(file);
-        const upload = await uploadUrl.mutateAsync({
-          conversationId: convoId,
-          fileName: prepared.fileName,
-          mimeType: prepared.mimeType,
-          sizeBytes: prepared.blob.size,
-        });
-        const response = await fetch(upload.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": prepared.mimeType },
-          body: prepared.blob,
-        });
-        if (!response.ok) throw new Error("File upload failed");
-        attachments.push({
-          objectKey: upload.objectKey,
-          originalName: prepared.originalName,
-          mimeType: prepared.mimeType,
-          sizeBytes: prepared.blob.size,
-          metadata: {
-            width: prepared.width,
-            height: prepared.height,
-            originalMimeType: prepared.originalMimeType,
-            originalSizeBytes: prepared.originalSizeBytes,
-          },
-        });
-      }
-      send.mutate({ conversationId: convoId, body: messageBody, attachments });
-    })().catch(() => {
-      setOptimisticMessages((current) =>
-        current.map((item) =>
-          item.body === messageBody ? { ...item, status: "failed" } : item,
-        ),
-      );
-    });
     setBody("");
+    void (async () => {
+      // prepare first so pending preview uses same dimensions/compression as sent
+      const preparedList: Array<Awaited<ReturnType<typeof prepareImage>>> = [];
+      for (const file of selectedFiles) {
+        preparedList.push(await prepareImage(file));
+      }
+      const optimisticUrls = preparedList.map((p) =>
+        URL.createObjectURL(p.blob),
+      );
+      setOptimisticMessages((current) => [
+        ...current,
+        {
+          id: tempId,
+          conversationId: convoId,
+          body: messageBody,
+          senderId: me.data?.id ?? 0,
+          createdAt: new Date(),
+          username: me.data?.username ?? null,
+          status: "sending",
+          deletedAt: null,
+          attachments: preparedList.map((prepared, index) => ({
+            id: -(index + 1),
+            messageId: 0,
+            originalName: prepared.originalName,
+            mimeType: prepared.mimeType,
+            sizeBytes: prepared.blob.size,
+            metadata: {
+              width: prepared.width,
+              height: prepared.height,
+            },
+            url: optimisticUrls[index],
+          })),
+        },
+      ]);
+      try {
+        const attachments = [];
+        for (const prepared of preparedList) {
+          const upload = await uploadUrl.mutateAsync({
+            conversationId: convoId,
+            fileName: prepared.fileName,
+            mimeType: prepared.mimeType,
+            sizeBytes: prepared.blob.size,
+          });
+          const response = await fetch(upload.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": prepared.mimeType },
+            body: prepared.blob,
+          });
+          if (!response.ok) throw new Error("File upload failed");
+          attachments.push({
+            objectKey: upload.objectKey,
+            originalName: prepared.originalName,
+            mimeType: prepared.mimeType,
+            sizeBytes: prepared.blob.size,
+            metadata: {
+              width: prepared.width,
+              height: prepared.height,
+              originalMimeType: prepared.originalMimeType,
+              originalSizeBytes: prepared.originalSizeBytes,
+            },
+          });
+        }
+        await send.mutateAsync({
+          conversationId: convoId,
+          body: messageBody,
+          attachments,
+        });
+        // remove optimistic by tempId (more reliable than body match for image-only messages)
+        setOptimisticMessages((current) =>
+          current.filter((item) => item.id !== tempId),
+        );
+      } catch {
+        setOptimisticMessages((current) =>
+          current.map((item) =>
+            item.id === tempId ? { ...item, status: "failed" } : item,
+          ),
+        );
+      }
+    })();
   };
 
   const addDroppedFiles = (fileList: FileList | null) => {
@@ -316,7 +367,7 @@ function ConversationPage() {
   };
 
   const baseMessages = (
-    localMessages?.length ? localMessages : (messages.data ?? [])
+    messages.data?.length ? messages.data : (localMessages ?? [])
   ).map((m) =>
     optimisticallyDeletedIds.has(m.id)
       ? { ...m, deletedAt: new Date(), body: "" }
@@ -401,6 +452,7 @@ function ConversationPage() {
                   message={msg}
                   sender={users.find((user) => user.id === msg.senderId)}
                   isOwnMessage={me.data?.id === msg.senderId}
+                  conversationId={convoId}
                   onDelete={(messageId) =>
                     deleteMessage.mutate({
                       conversationId: convoId,

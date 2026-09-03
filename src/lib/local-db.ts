@@ -9,6 +9,8 @@ export type LocalAttachment = {
   sizeBytes: number;
   metadata: Record<string, unknown> | null;
   url?: string;
+  objectKey?: string;
+  willExpireAt?: Date;
 };
 
 export type LocalMessage = {
@@ -75,6 +77,27 @@ export async function pruneLocalMessages() {
     .toArray();
   if (!expired.length) return;
   await localDb.messages.bulkDelete(expired.map((message) => message.id));
+}
+
+const URL_TTL_MS = 15 * 60 * 1000;
+
+export function stampWillExpireAt<T extends { attachments?: Array<unknown> }>(
+  row: T,
+): T {
+  if (!row.attachments) return row;
+  return {
+    ...row,
+    attachments: (
+      row.attachments as Array<{
+        url?: string;
+        willExpireAt?: Date;
+      }>
+    ).map((a) =>
+      a.url && !a.willExpireAt
+        ? { ...a, willExpireAt: new Date(Date.now() + URL_TTL_MS) }
+        : a,
+    ),
+  };
 }
 
 export async function upsertMessages(rows: Array<LocalMessage>) {

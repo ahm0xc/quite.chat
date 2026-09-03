@@ -311,7 +311,9 @@ export const conversationsRouter = {
                   .filter((attachment) => attachment.messageId === row.id)
                   .map(async ({ objectKey, ...attachment }) => ({
                     ...attachment,
+                    objectKey,
                     url: await createR2DownloadUrl(objectKey),
+                    willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
                   })),
               ),
             })),
@@ -439,7 +441,9 @@ export const conversationsRouter = {
         attachments: await Promise.all(
           attachmentRows.map(async ({ objectKey, ...attachment }) => ({
             ...attachment,
+            objectKey,
             url: await createR2DownloadUrl(objectKey),
+            willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
           })),
         ),
       };
@@ -454,6 +458,28 @@ export const conversationsRouter = {
       }
 
       return eventMessage;
+    }),
+
+  refreshAttachmentUrl: protectedProcedure
+    .input(z.object({ attachmentId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await db
+        .select({
+          id: messageAttachments.id,
+          objectKey: messageAttachments.objectKey,
+          conversationId: messages.conversationId,
+        })
+        .from(messageAttachments)
+        .innerJoin(messages, eq(messageAttachments.messageId, messages.id))
+        .where(eq(messageAttachments.id, input.attachmentId))
+        .limit(1);
+      if (!rows[0]) throw new Error("Attachment not found");
+      await assertConversationMember(ctx.userId, rows[0].conversationId);
+      return {
+        url: await createR2DownloadUrl(rows[0].objectKey),
+        objectKey: rows[0].objectKey,
+        willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
+      };
     }),
 } satisfies TRPCRouterRecord;
 

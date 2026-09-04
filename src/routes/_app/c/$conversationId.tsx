@@ -1,6 +1,10 @@
 import { useAuth } from "@clerk/tanstack-react-start";
 import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { PhoneIcon } from "@phosphor-icons/react/dist/csr/Phone";
+import { PushPinIcon } from "@phosphor-icons/react/dist/csr/PushPin";
+import { VideoCameraIcon } from "@phosphor-icons/react/dist/csr/VideoCamera";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -532,7 +536,10 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
 
   return (
     <div className="flex h-14 items-center gap-3 border-b px-4">
-      <Link to="/" className="text-muted-foreground hover:text-foreground">
+      <Link
+        to="/"
+        className="text-muted-foreground hover:text-foreground md:hidden"
+      >
         <CaretLeftIcon className="h-5 w-5" />
       </Link>
       {user?.avatarUrl ? (
@@ -549,6 +556,20 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
       <h1 className="text-sm font-medium">
         {user?.displayName ?? user?.username ?? "Unknown"}
       </h1>
+      <div className="ml-auto flex items-center gap-1">
+        <Button variant="ghost" size="icon" aria-label="Voice call">
+          <PhoneIcon />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label="Video call">
+          <VideoCameraIcon />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label="Pinned messages">
+          <PushPinIcon />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label="Search messages">
+          <MagnifyingGlassIcon />
+        </Button>
+      </div>
     </div>
   );
 }

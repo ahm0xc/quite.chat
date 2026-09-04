@@ -131,10 +131,7 @@ function ConversationPage() {
 
   const send = useMutation(
     trpc.conversations.sendMessage.mutationOptions({
-      onSuccess: (message, variables) => {
-        setOptimisticMessages((current) =>
-          current.filter((item) => item.body !== variables.body),
-        );
+      onSuccess: (message) => {
         queryClient.setQueryData(
           trpc.conversations.messages.queryKey({ conversationId: convoId }),
           (current) => {
@@ -167,12 +164,7 @@ function ConversationPage() {
           trpc.conversations.list.queryOptions(),
         );
       },
-      onError: (_error, variables) => {
-        setOptimisticMessages((current) =>
-          current.map((item) =>
-            item.body === variables.body ? { ...item, status: "failed" } : item,
-          ),
-        );
+      onError: () => {
         void queryClient.invalidateQueries(
           trpc.conversations.messages.queryOptions({
             conversationId: convoId,
@@ -515,7 +507,6 @@ function ConversationPage() {
           <Composer
             onChange={setBody}
             onSubmit={handleSend}
-            disabled={send.isPending}
             canSubmit={Boolean(body.trim() || files.length)}
             onFilesSelected={(selected) =>
               setFiles((current) => [...current, ...selected])

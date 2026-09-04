@@ -71,7 +71,7 @@ function SubmitButton({
       type="button"
       size="icon"
       aria-label="Send message"
-      className="absolute top-0 right-0 bottom-0 my-auto rounded-r-md"
+      className="absolute top-0 right-0 rounded-r-md"
       disabled={disabled || !canSubmit}
       onClick={() => {
         if (disabled || !canSubmit) return;
@@ -117,7 +117,7 @@ export function Composer({
           }}
         />
 
-        <div className="absolute top-0 bottom-0 left-0 flex gap-2">
+        <div className="absolute top-0 left-0 flex gap-2">
           <Button
             type="button"
             size="icon"
@@ -125,7 +125,7 @@ export function Composer({
             aria-label="Attach images"
             title="Attach images"
             disabled={disabled}
-            className="my-auto rounded-l-md"
+            className="rounded-l-md"
             onClick={() => fileInputRef.current?.click()}
           >
             <PaperclipIcon />

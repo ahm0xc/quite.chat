@@ -104,7 +104,7 @@ export function Composer({
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative min-h-9 flex-1 rounded-md border bg-input/50 py-2 pl-3 text-base md:text-sm",
+          "relative min-h-9 flex-1 rounded-md border bg-input/50 py-1.5 pl-3 text-base md:py-2 md:text-sm",
           isMobile ? "pr-20" : "pr-12",
           disabled && "cursor-not-allowed opacity-50",
         )}
@@ -135,7 +135,7 @@ export function Composer({
             />
           }
           placeholder={
-            <div className="text-muted-foreground pointer-events-none absolute top-2 left-3">
+            <div className="text-muted-foreground pointer-events-none absolute top-1.5 left-3 md:top-2">
               Type a message...
             </div>
           }

@@ -28,16 +28,16 @@ export const Route = createFileRoute("/api/pusher/auth")({
           return new Response("Bad request", { status: 400 });
         }
 
+        const localUserId = await getLocalUserId(session.userId);
+        if (!localUserId) return new Response("Forbidden", { status: 403 });
+
         const member = await db
           .select({ userId: conversationMembers.userId })
           .from(conversationMembers)
           .where(
             and(
               eq(conversationMembers.conversationId, Number(conversationId)),
-              eq(
-                conversationMembers.userId,
-                await getLocalUserId(session.userId),
-              ),
+              eq(conversationMembers.userId, localUserId),
               isNull(conversationMembers.leftAt),
             ),
           )
@@ -54,10 +54,11 @@ export const Route = createFileRoute("/api/pusher/auth")({
 });
 
 async function getLocalUserId(clerkUserId: string) {
-  const [user] = await db
+  const rows = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.clerkUserId, clerkUserId))
     .limit(1);
-  return user.id;
+  if (rows.length === 0) return null;
+  return rows[0].id;
 }

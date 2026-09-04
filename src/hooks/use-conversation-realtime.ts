@@ -27,13 +27,23 @@ export function useConversationRealtime(conversationId: number) {
     const channel = pusher.subscribe(`private-conversation-${conversationId}`);
 
     channel.bind("message.created", (message: MessageEvent) => {
-      const normalizedMessage = {
+      const stamped = stampWillExpireAt({
         ...message,
+        conversationId,
         createdAt: new Date(message.createdAt),
-      };
-      void upsertMessages([
-        stampWillExpireAt({ ...normalizedMessage, conversationId }),
-      ]);
+      });
+      void upsertMessages([stamped]);
+      queryClient.setQueryData(
+        trpc.conversations.messages.queryKey({ conversationId }),
+        (old) => {
+          if (!old) return old;
+          if (old.some((m) => m.id === message.id)) return old;
+          return [...old, stamped as unknown as (typeof old)[number]];
+        },
+      );
+      void queryClient.invalidateQueries(
+        trpc.conversations.list.queryOptions(),
+      );
     });
 
     channel.bind("message.deleted", (data: { id: number }) => {

@@ -91,7 +91,7 @@ export function MessageBubble({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-col items-start">
+      <div className="flex min-w-0 flex-1 flex-col items-start">
         <span
           className={cn(
             "text-muted-foreground flex items-baseline gap-1.5 text-xs leading-none whitespace-nowrap",
@@ -170,7 +170,7 @@ export function MessageBubble({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger className="block">{bubble}</ContextMenuTrigger>
+      <ContextMenuTrigger className="block w-full">{bubble}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem>
           <ArrowBendUpLeftIcon />

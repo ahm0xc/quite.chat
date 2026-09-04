@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchStreamLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import * as React from "react";
+import type { ReactNode } from "react";
 import superjson from "superjson";
 
 import { env } from "~/env";
@@ -50,7 +51,7 @@ export default function TanstackQueryProvider({
   children,
   context,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   context: ReturnType<typeof getContext>;
 }) {
   const { queryClient } = context;

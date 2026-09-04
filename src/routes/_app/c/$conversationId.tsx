@@ -1,6 +1,5 @@
 import { useAuth } from "@clerk/tanstack-react-start";
 import { ArrowDownIcon } from "@phosphor-icons/react/dist/csr/ArrowDown";
-import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -512,25 +511,16 @@ function ConversationPage() {
           </div>
         )}
 
-        <div className="flex gap-2 px-3 pt-3 pb-3">
+        <div className="px-3 pt-3 pb-3">
           <Composer
             onChange={setBody}
             onSubmit={handleSend}
             disabled={send.isPending}
+            canSubmit={Boolean(body.trim() || files.length)}
             onFilesSelected={(selected) =>
               setFiles((current) => [...current, ...selected])
             }
           />
-
-          <Button
-            type="button"
-            size="icon"
-            className="h-10 w-10"
-            onClick={() => handleSend()}
-            disabled={send.isPending || (!body.trim() && !files.length)}
-          >
-            <ArrowUpIcon />
-          </Button>
         </div>
       </div>
     </div>

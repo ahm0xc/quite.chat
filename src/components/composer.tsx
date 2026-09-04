@@ -4,7 +4,7 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { $getRoot, COMMAND_PRIORITY_HIGH, KEY_ENTER_COMMAND } from "lexical";
-import { useEffect } from "react";
+import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
@@ -28,7 +28,7 @@ const initialConfig = {
 function SubmitOnEnterPlugin({ onSubmit }: Pick<ComposerProps, "onSubmit">) {
   const [editor] = useLexicalComposerContext();
 
-  useEffect(
+  React.useEffect(
     () =>
       editor.registerCommand(
         KEY_ENTER_COMMAND,

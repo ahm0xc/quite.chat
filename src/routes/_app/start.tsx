@@ -3,7 +3,7 @@ import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
 import { QrCodeIcon } from "@phosphor-icons/react/dist/csr/QrCode";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import * as React from "react";
 
 import { Button } from "~/components/ui/button";
 import { InputGroup, InputGroupInput } from "~/components/ui/input-group";
@@ -15,9 +15,9 @@ export const Route = createFileRoute("/_app/start")({
 });
 
 function RouteComponent() {
-  const [username, setUsername] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [username, setUsername] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
 
   const trpc = useTRPC();
   const navigate = useNavigate();

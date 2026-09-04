@@ -8,6 +8,7 @@ const clientSchema = z.object({
 
 const serverSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  PORT: z.string().default("3441"),
   CLERK_SECRET_KEY: z.string().min(1),
   CLERK_WEBHOOK_SECRET: z.string().min(1),
   CLERK_SIGN_IN_URL: z.string().default("/sign-in"),

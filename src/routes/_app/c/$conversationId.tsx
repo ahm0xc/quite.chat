@@ -5,7 +5,8 @@ import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useMemo, useRef, useState } from "react";
+import * as React from "react";
+import type { DragEvent } from "react";
 
 import { Composer } from "~/components/composer";
 import { MessageBubble } from "~/components/message-bubble";
@@ -30,28 +31,22 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 });
 
 function ConversationPage() {
-  const { conversationId } = Route.useParams();
-  const [body, setBody] = useState("");
-  const [files, setFiles] = useState<Array<File>>([]);
-  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-  const dragDepth = useRef(0);
-  const filePreviews = useMemo(
+  const [body, setBody] = React.useState("");
+  const [files, setFiles] = React.useState<Array<File>>([]);
+  const [isDraggingFiles, setIsDraggingFiles] = React.useState(false);
+  const [optimisticMessages, setOptimisticMessages] = React.useState<
+    Array<UIMessage>
+  >([]);
+  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] =
+    React.useState<Set<number>>(new Set());
+  const dragDepth = React.useRef(0);
+  const latestMessageRef = React.useRef<HTMLLIElement>(null);
+  const filePreviews = React.useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
     [files],
   );
-  useEffect(
-    () => () => {
-      for (const preview of filePreviews) URL.revokeObjectURL(preview.url);
-    },
-    [filePreviews],
-  );
-  const [optimisticMessages, setOptimisticMessages] = useState<
-    Array<UIMessage>
-  >([]);
-  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<
-    Set<number>
-  >(new Set());
 
+  const { conversationId } = Route.useParams();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { isLoaded, isSignedIn } = useAuth();
@@ -61,6 +56,15 @@ function ConversationPage() {
     enabled: isLoaded && isSignedIn === true,
   });
   const convoId = Number(conversationId);
+  const [prevConvoId, setPrevConvoId] = React.useState(convoId);
+
+  // stale optimistic state bleeds across SPA navigations without this
+  if (prevConvoId !== convoId) {
+    setPrevConvoId(convoId);
+    setOptimisticMessages([]);
+    setOptimisticallyDeletedIds(new Set());
+  }
+
   const messages = useQuery({
     ...trpc.conversations.messages.queryOptions({ conversationId: convoId }),
     enabled: isLoaded && isSignedIn === true,
@@ -68,13 +72,15 @@ function ConversationPage() {
   const { mutate: markRead } = useMutation(
     trpc.conversations.markRead.mutationOptions(),
   );
-  const latestMessageRef = useRef<HTMLLIElement>(null);
 
-  // stale optimistic state bleeds across SPA navigations without this
-  useEffect(() => {
-    setOptimisticMessages([]);
-    setOptimisticallyDeletedIds(new Set());
-  }, [convoId]);
+  React.useEffect(
+    () => () => {
+      for (const preview of filePreviews) URL.revokeObjectURL(preview.url);
+    },
+    [filePreviews],
+  );
+
+  // stale optimistic state is reset during render above (prevConvoId check)
 
   const localMessages = useLiveQuery(
     () =>
@@ -99,10 +105,10 @@ function ConversationPage() {
     ...trpc.users.getByUsernames.queryOptions({ usernames: missingUsernames }),
     enabled: isLoaded && isSignedIn === true && missingUsernames.length > 0,
   });
-  useEffect(() => {
+  React.useEffect(() => {
     if (usersByUsername.data?.length) void upsertUsers(usersByUsername.data);
   }, [usersByUsername.data]);
-  useEffect(() => {
+  React.useEffect(() => {
     if (messages.data) {
       const data = messages.data as Array<
         (typeof messages.data)[number] & {
@@ -342,7 +348,7 @@ function ConversationPage() {
       setFiles((current) => [...current, ...droppedFiles]);
   };
 
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     dragDepth.current += 1;
     if (event.dataTransfer.types.includes("Files")) {
@@ -350,7 +356,7 @@ function ConversationPage() {
     }
   };
 
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     dragDepth.current -= 1;
     if (dragDepth.current <= 0) {
@@ -359,7 +365,7 @@ function ConversationPage() {
     }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     dragDepth.current = 0;
     setIsDraggingFiles(false);
@@ -380,7 +386,7 @@ function ConversationPage() {
     .find((message) => typeof message.id === "number");
   const { hasNewMessages, messagesListRef, rowVirtualizer, scrollToLatest } =
     useMessageScroll(renderedMessages.length, convoId);
-  useEffect(() => {
+  React.useEffect(() => {
     const message = latestMessage;
     const element = latestMessageRef.current;
     const list = messagesListRef.current;

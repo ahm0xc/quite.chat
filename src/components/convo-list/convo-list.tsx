@@ -59,10 +59,13 @@ function formatTime(date: Date | string | null) {
 }
 
 export function ConvoList() {
+  const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
+
   const { user } = useUser();
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const trpc = useTRPC();
+  const { setTheme, theme } = useTheme();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -96,8 +99,6 @@ export function ConvoList() {
   React.useEffect(() => {
     if (conversations.data) void syncConversations(conversations.data);
   }, [conversations.data]);
-  const { setTheme, theme } = useTheme();
-  const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
 
   return (
     <div className="flex min-h-dvh flex-col p-4">

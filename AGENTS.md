@@ -1,6 +1,6 @@
 ## Database with Drizzle
 
-- When generating database migrations, use descriptive names: `bun run db:generate --name <descriptive_name>`. Never use auto-generated names.
+- When generating database migrations, use descriptive names: `vp run db:generate --name <descriptive_name>`. Never use auto-generated names.
 
 ## Using Vite+
 
@@ -10,6 +10,7 @@
 ## React
 
 - Make sure to never extract and import something from 'react' package. Rather import every thing like this `import * as React from 'react'` and then use the needed things like this `React.useState`, `React.useEffect`, `React.useRef`, `React.useMemo` and so on.
+- For types from the 'react' package, import them directly with a separate type import like this `import type { ReactNode } from 'react'` and use them without the `React.` prefix (e.g. `ReactNode`, not `React.ReactNode`).
 - Use proper ordering for hooks and variables in a component in the following order below
   - React hooks like `useState` then `useRef`
   - Gap (separator)

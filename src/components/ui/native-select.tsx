@@ -1,9 +1,9 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import * as React from "react";
+import type { ComponentProps } from "react";
 
 import { cn } from "~/lib/utils";
 
-type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
+type NativeSelectProps = Omit<ComponentProps<"select">, "size"> & {
   size?: "sm" | "default";
 };
 
@@ -36,10 +36,7 @@ function NativeSelect({
   );
 }
 
-function NativeSelectOption({
-  className,
-  ...props
-}: React.ComponentProps<"option">) {
+function NativeSelectOption({ className, ...props }: ComponentProps<"option">) {
   return (
     <option
       data-slot="native-select-option"
@@ -52,7 +49,7 @@ function NativeSelectOption({
 function NativeSelectOptGroup({
   className,
   ...props
-}: React.ComponentProps<"optgroup">) {
+}: ComponentProps<"optgroup">) {
   return (
     <optgroup
       data-slot="native-select-optgroup"

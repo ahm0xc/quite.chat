@@ -1,6 +1,6 @@
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu";
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
-import * as React from "react";
+import type { ComponentProps } from "react";
 
 import { cn } from "~/lib/utils";
 
@@ -142,7 +142,7 @@ function ContextMenuSubTrigger({
 
 function ContextMenuSubContent({
   ...props
-}: React.ComponentProps<typeof ContextMenuContent>) {
+}: ComponentProps<typeof ContextMenuContent>) {
   return (
     <ContextMenuContent
       data-slot="context-menu-sub-content"
@@ -235,10 +235,7 @@ function ContextMenuSeparator({
   );
 }
 
-function ContextMenuShortcut({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
+function ContextMenuShortcut({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
       data-slot="context-menu-shortcut"

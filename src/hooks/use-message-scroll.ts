@@ -1,11 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import * as React from "react";
 
 const BOTTOM_THRESHOLD = 96;
 
@@ -13,8 +7,14 @@ export function useMessageScroll(
   messageCount: number,
   conversationKey?: string | number,
 ) {
-  const [hasNewMessages, setHasNewMessages] = useState(false);
-  const messagesListRef = useRef<HTMLUListElement>(null);
+  const [hasNewMessages, setHasNewMessages] = React.useState(false);
+  const messagesListRef = React.useRef<HTMLUListElement>(null);
+  const isNearBottomRef = React.useRef(true);
+  const hasInitializedScrollRef = React.useRef(false);
+  const prevCountRef = React.useRef(0);
+  const prevKeyRef = React.useRef(conversationKey);
+
+  // eslint-disable-next-line react/incompatible-library -- TanStack Virtual returns non-memoizable functions by design; React Compiler skips this hook
   const rowVirtualizer = useVirtualizer({
     count: messageCount,
     getScrollElement: () => messagesListRef.current,
@@ -22,10 +22,6 @@ export function useMessageScroll(
     getItemKey: (index) => index,
     overscan: 8,
   });
-  const isNearBottomRef = useRef(true);
-  const hasInitializedScrollRef = useRef(false);
-  const prevCountRef = useRef(0);
-  const prevKeyRef = useRef(conversationKey);
 
   if (prevKeyRef.current !== conversationKey) {
     prevKeyRef.current = conversationKey;
@@ -34,11 +30,11 @@ export function useMessageScroll(
     isNearBottomRef.current = true;
   }
 
-  useEffect(() => {
+  React.useEffect(() => {
     setHasNewMessages(false);
   }, [conversationKey]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const list = messagesListRef.current;
     if (!list) return;
 
@@ -53,7 +49,7 @@ export function useMessageScroll(
     return () => list.removeEventListener("scroll", updateScrollPosition);
   }, []);
 
-  const scrollToBottom = useCallback(
+  const scrollToBottom = React.useCallback(
     (smooth = false) => {
       const list = messagesListRef.current;
       if (!list || messageCount === 0) return;
@@ -73,7 +69,7 @@ export function useMessageScroll(
     [messageCount, rowVirtualizer],
   );
 
-  const scheduleBottomScroll = useCallback(() => {
+  const scheduleBottomScroll = React.useCallback(() => {
     scrollToBottom(false);
     const raf1 = requestAnimationFrame(() => {
       scrollToBottom(false);
@@ -88,7 +84,16 @@ export function useMessageScroll(
     };
   }, [scrollToBottom]);
 
-  useLayoutEffect(() => {
+  const scrollToLatest = React.useCallback(() => {
+    if (messageCount > 0) {
+      scrollToBottom(true);
+      requestAnimationFrame(() => scrollToBottom(true));
+    }
+    isNearBottomRef.current = true;
+    setHasNewMessages(false);
+  }, [messageCount, scrollToBottom]);
+
+  React.useLayoutEffect(() => {
     if (messageCount === 0) {
       prevCountRef.current = 0;
       hasInitializedScrollRef.current = false;
@@ -122,7 +127,7 @@ export function useMessageScroll(
   // Re-assert bottom when virtualizer re-measures (estimate 72 -> actual) or mobile dvh settles.
   // Without this, first scroll can land a few items above bottom when heights were still estimated.
   const totalSize = rowVirtualizer.getTotalSize();
-  useLayoutEffect(() => {
+  React.useLayoutEffect(() => {
     if (
       hasInitializedScrollRef.current &&
       isNearBottomRef.current &&
@@ -137,15 +142,6 @@ export function useMessageScroll(
       }
     }
   }, [totalSize, messageCount, scrollToBottom]);
-
-  const scrollToLatest = useCallback(() => {
-    if (messageCount > 0) {
-      scrollToBottom(true);
-      requestAnimationFrame(() => scrollToBottom(true));
-    }
-    isNearBottomRef.current = true;
-    setHasNewMessages(false);
-  }, [messageCount, scrollToBottom]);
 
   return {
     hasNewMessages,

@@ -1,10 +1,11 @@
 import { ScriptOnce } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useState } from "react";
+import * as React from "react";
+import type { ReactNode } from "react";
 
 type Theme = "dark" | "light" | "system";
 
 type ThemeProviderProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   defaultTheme?: Theme;
   storageKey?: string;
 };
@@ -29,7 +30,7 @@ function getThemeScript(storageKey: string, defaultTheme: Theme) {
   return `(function(){try{var t=localStorage.getItem(${key});if(t!=='light'&&t!=='dark'&&t!=='system'){t=${fallback}}var d=matchMedia('(prefers-color-scheme: dark)').matches;var r=t==='system'?(d?'dark':'light'):t;var e=document.documentElement;e.classList.add(r);e.style.colorScheme=r}catch(e){}})();`;
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState>({
+const ThemeProviderContext = React.createContext<ThemeProviderState>({
   theme: "system",
   setTheme: () => {},
 });
@@ -54,15 +55,20 @@ export function ThemeProvider({
   defaultTheme = "system",
   storageKey = "theme",
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() =>
+  const [theme, setThemeState] = React.useState<Theme>(() =>
     getInitialTheme(storageKey, defaultTheme),
   );
 
-  useEffect(() => {
+  const setTheme = (next: Theme) => {
+    localStorage.setItem(storageKey, next);
+    setThemeState(next);
+  };
+
+  React.useEffect(() => {
     applyTheme(theme);
   }, [theme]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (theme !== "system") return;
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -70,11 +76,6 @@ export function ThemeProvider({
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, [theme]);
-
-  const setTheme = (next: Theme) => {
-    localStorage.setItem(storageKey, next);
-    setThemeState(next);
-  };
 
   return (
     <ThemeProviderContext value={{ theme, setTheme }}>
@@ -85,5 +86,5 @@ export function ThemeProvider({
 }
 
 export function useTheme() {
-  return useContext(ThemeProviderContext);
+  return React.useContext(ThemeProviderContext);
 }

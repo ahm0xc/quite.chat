@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Pusher from "pusher-js";
-import { useEffect } from "react";
+import * as React from "react";
 
 import { env } from "~/env";
 import { useTRPC } from "~/integrations/trpc/react";
@@ -23,7 +23,7 @@ const pusher = new Pusher(env.VITE_PUSHER_KEY, {
 export function useConversationRealtime(conversationId: number) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  useEffect(() => {
+  React.useEffect(() => {
     const channel = pusher.subscribe(`private-conversation-${conversationId}`);
 
     channel.bind("message.created", (message: MessageEvent) => {
@@ -69,7 +69,7 @@ export function useConversationsRealtime(
 ) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  useEffect(() => {
+  React.useEffect(() => {
     const channels = conversationIds.map((conversationId) => {
       const channel = pusher.subscribe(
         `private-conversation-${conversationId}`,

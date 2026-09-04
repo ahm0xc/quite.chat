@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import * as React from "react";
 
 import { useTRPC } from "~/integrations/trpc/react";
 import { localDb } from "~/lib/local-db";
@@ -29,6 +29,10 @@ function ExpiringImage({
   className?: string;
   single?: boolean;
 }) {
+  const [displayUrl, setDisplayUrl] = React.useState(attachment.url);
+  const [loaded, setLoaded] = React.useState(false);
+  const [prevServerUrl, setPrevServerUrl] = React.useState(attachment.url);
+
   const trpc = useTRPC();
   const isBlob = attachment.url?.startsWith("blob:");
   const isTemp = attachment.id < 0;
@@ -46,34 +50,35 @@ function ExpiringImage({
     staleTime: Infinity,
   });
 
-  const [displayUrl, setDisplayUrl] = useState(attachment.url);
-  const [loaded, setLoaded] = useState(false);
+  const refreshedUrl = refresh.data?.url;
+  const refreshedWillExpireAt = (
+    refresh.data as { willExpireAt?: Date } | undefined
+  )?.willExpireAt;
 
   // keep displayUrl in sync with attachment.url (initial/server) — not with refresh
-  useEffect(() => {
-    if (!refresh.data?.url) setDisplayUrl(attachment.url);
-  }, [attachment.url, refresh.data?.url]);
+  if (prevServerUrl !== attachment.url) {
+    setPrevServerUrl(attachment.url);
+    if (!refreshedUrl) setDisplayUrl(attachment.url);
+  }
 
   // preload refreshed url, then swap without showing placeholder again
-  useEffect(() => {
-    const newUrl = refresh.data?.url;
-    if (!newUrl || newUrl === displayUrl) return;
+  React.useEffect(() => {
+    if (!refreshedUrl || refreshedUrl === displayUrl) return;
     const img = new window.Image();
-    img.src = newUrl;
-    const swap = () => setDisplayUrl(newUrl);
+    img.src = refreshedUrl;
+    const swap = () => setDisplayUrl(refreshedUrl);
     if (img.complete) swap();
     else {
       img.onload = swap;
       img.onerror = swap;
     }
-  }, [refresh.data?.url, displayUrl]);
+  }, [refreshedUrl, displayUrl]);
 
-  useEffect(() => {
-    if (!refresh.data?.url || !attachment.messageId) return;
-    const newUrl = refresh.data.url;
+  React.useEffect(() => {
+    if (!refreshedUrl || !attachment.messageId) return;
+    const newUrl = refreshedUrl;
     const newWillExpireAt =
-      (refresh.data as { willExpireAt?: Date }).willExpireAt ??
-      new Date(Date.now() + 15 * 60 * 1000);
+      refreshedWillExpireAt ?? new Date(Date.now() + 15 * 60 * 1000);
     void (async () => {
       const msg = await localDb.messages.get(attachment.messageId as number);
       if (!msg?.attachments) return;
@@ -85,7 +90,12 @@ function ExpiringImage({
         ),
       });
     })();
-  }, [refresh.data?.url, attachment.id, attachment.messageId]);
+  }, [
+    refreshedUrl,
+    refreshedWillExpireAt,
+    attachment.id,
+    attachment.messageId,
+  ]);
 
   if (!displayUrl) return null;
 

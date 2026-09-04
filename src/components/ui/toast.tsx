@@ -7,7 +7,7 @@ import {
   XCircleIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react";
-import * as React from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
@@ -136,7 +136,7 @@ function ToastClose({
 }
 
 function ToastIcon({ type }: { type: string | undefined }) {
-  let icon: React.ReactNode = null;
+  let icon: ReactNode = null;
 
   if (type === "success") {
     icon = <CheckCircleIcon aria-hidden="true" />;

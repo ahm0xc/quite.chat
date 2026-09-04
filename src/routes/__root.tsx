@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import type { ReactNode } from "react";
 
 import type { TRPCRouter } from "~/integrations/trpc/router";
 
@@ -44,7 +45,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   shellComponent: RootDocument,
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

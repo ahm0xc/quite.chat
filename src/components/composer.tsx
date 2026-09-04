@@ -9,6 +9,7 @@ import { $getRoot, COMMAND_PRIORITY_HIGH, KEY_ENTER_COMMAND } from "lexical";
 import * as React from "react";
 
 import { Button } from "~/components/ui/button";
+import { useIsMobile } from "~/hooks/use-mobile";
 import { cn } from "~/lib/utils";
 
 type ComposerProps = {
@@ -71,7 +72,7 @@ function SubmitButton({
       type="button"
       size="icon"
       aria-label="Send message"
-      className="absolute top-0 right-0 rounded-r-md"
+      className="rounded-r-md"
       disabled={disabled || !canSubmit}
       onClick={() => {
         if (disabled || !canSubmit) return;
@@ -97,11 +98,14 @@ export function Composer({
 }: ComposerProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const isMobile = useIsMobile();
+
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div
         className={cn(
-          "relative min-h-9 flex-1 rounded-md border bg-input/50 py-2 pr-12 pl-12 text-base md:text-sm",
+          "relative min-h-9 flex-1 rounded-md border bg-input/50 py-2 pl-3 text-base md:text-sm",
+          isMobile ? "pr-20" : "pr-12",
           disabled && "cursor-not-allowed opacity-50",
         )}
       >
@@ -117,20 +121,10 @@ export function Composer({
           }}
         />
 
-        <div className="absolute top-0 left-0 flex gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            aria-label="Attach images"
-            title="Attach images"
-            disabled={disabled}
-            className="rounded-l-md"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <PaperclipIcon />
-          </Button>
-        </div>
+        <div
+          aria-label="left-actions"
+          className="absolute top-0 left-0 flex gap-2"
+        />
 
         <RichTextPlugin
           contentEditable={
@@ -141,7 +135,7 @@ export function Composer({
             />
           }
           placeholder={
-            <div className="text-muted-foreground pointer-events-none absolute top-2 left-12">
+            <div className="text-muted-foreground pointer-events-none absolute top-2 left-3">
               Type a message...
             </div>
           }
@@ -153,11 +147,29 @@ export function Composer({
           }}
         />
         <SubmitOnEnterPlugin onSubmit={onSubmit} />
-        <SubmitButton
-          onSubmit={onSubmit}
-          disabled={disabled}
-          canSubmit={canSubmit}
-        />
+        <div
+          aria-label="right-actions"
+          className="absolute top-0 right-0 flex gap-1"
+        >
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label="Attach images"
+            title="Attach images"
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <PaperclipIcon />
+          </Button>
+          {isMobile ? (
+            <SubmitButton
+              onSubmit={onSubmit}
+              disabled={disabled}
+              canSubmit={canSubmit}
+            />
+          ) : null}
+        </div>
       </div>
     </LexicalComposer>
   );

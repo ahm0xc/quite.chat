@@ -74,6 +74,7 @@ function SubmitButton({
       aria-label="Send message"
       className="rounded-r-md"
       disabled={disabled || !canSubmit}
+      onPointerDown={(event) => event.preventDefault()}
       onClick={() => {
         if (disabled || !canSubmit) return;
 
@@ -82,6 +83,7 @@ function SubmitButton({
           onSubmit(value);
           editor.update(() => $getRoot().clear());
         });
+        editor.focus();
       }}
     >
       <ArrowUpIcon />

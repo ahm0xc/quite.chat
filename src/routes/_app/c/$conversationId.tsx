@@ -423,7 +423,7 @@ function ConversationPage() {
 
       <ul
         ref={messagesListRef}
-        className="relative min-h-0 w-full flex-1 overflow-y-scroll pt-4 pb-6"
+        className="relative min-h-0 w-full flex-1 overflow-y-scroll pt-4"
       >
         <div
           className="relative min-h-full w-full"

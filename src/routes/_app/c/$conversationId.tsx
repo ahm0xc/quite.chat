@@ -28,6 +28,7 @@ import {
 import type { LocalMessage } from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
 import { cn } from "~/lib/utils";
+import { isTranscodeSupported, transcodeToMp4 } from "~/lib/video-transcode";
 
 export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
@@ -41,8 +42,10 @@ type PendingAttachment = {
   prepared?: Awaited<ReturnType<typeof prepareImage>>;
   videoFile?: File;
   videoMeta?: Awaited<ReturnType<typeof prepareVideo>>;
+  originalName?: string;
   thumbnailBlob?: Blob;
   thumbnailUrl?: string;
+  progress?: number;
   error?: string;
 };
 
@@ -64,6 +67,8 @@ function isBasicVideoFile(file: File) {
     effectiveFileType(file),
   );
 }
+
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 
 function effectiveFileType(file: File) {
   if (file.type) return file.type;
@@ -280,7 +285,12 @@ function ConversationPage() {
   );
 
   const queueFiles = (incoming: Array<File>) => {
-    const accepted = incoming.filter(isSupportedFile);
+    const accepted = incoming.filter(
+      (file) =>
+        isSupportedFile(file) &&
+        (!effectiveFileType(file).startsWith("video/") ||
+          file.size <= VIDEO_MAX_BYTES),
+    );
     if (!accepted.length) return;
     const queued: Array<PendingAttachment> = accepted.map((file) => ({
       id:
@@ -328,20 +338,43 @@ function ConversationPage() {
           },
         );
       } else {
-        void prepareVideo(file).then(
-          (meta) => {
+        void (async () => {
+          const shouldTranscode = isBasicVideoFile(file);
+          const canTranscode =
+            shouldTranscode && (await isTranscodeSupported());
+          const videoFile = canTranscode
+            ? await transcodeToMp4(file, {
+                onProgress: (progress) => {
+                  setPendingAttachments((current) =>
+                    current.map((item) =>
+                      item.id === queuedItem.id ? { ...item, progress } : item,
+                    ),
+                  );
+                },
+              })
+            : file;
+          if (videoFile.size > VIDEO_MAX_BYTES) {
+            throw new Error("Converted video is larger than 100 MB");
+          }
+          try {
+            const meta = await prepareVideo(videoFile);
             const thumbnailUrl = URL.createObjectURL(meta.thumbnailBlob);
+            const videoPreviewUrl = URL.createObjectURL(videoFile);
             setPendingAttachments((current) => {
               if (!current.some((item) => item.id === queuedItem.id)) {
                 URL.revokeObjectURL(thumbnailUrl);
+                URL.revokeObjectURL(videoPreviewUrl);
                 return current;
               }
+              URL.revokeObjectURL(queuedItem.previewUrl);
               return current.map((item) =>
                 item.id === queuedItem.id
                   ? {
                       ...item,
                       status: "ready",
-                      videoFile: file,
+                      previewUrl: videoPreviewUrl,
+                      videoFile,
+                      originalName: file.name,
                       videoMeta: meta,
                       thumbnailBlob: meta.thumbnailBlob,
                       thumbnailUrl,
@@ -349,12 +382,11 @@ function ConversationPage() {
                   : item,
               );
             });
-          },
-          () => {
+          } catch {
             // mov/mkv often can't be parsed by this browser (but may play
             // elsewhere), so let them send without a thumbnail instead of
             // blocking; mp4/webm failures stay blocked as likely corrupt.
-            if (!isBasicVideoFile(file)) {
+            if (!isBasicVideoFile(file) || canTranscode) {
               setPendingAttachments((current) =>
                 current.map((item) =>
                   item.id === queuedItem.id
@@ -367,12 +399,25 @@ function ConversationPage() {
             setPendingAttachments((current) =>
               current.map((item) =>
                 item.id === queuedItem.id
-                  ? { ...item, status: "ready", videoFile: file }
+                  ? {
+                      ...item,
+                      status: "ready",
+                      videoFile: file,
+                      originalName: file.name,
+                    }
                   : item,
               ),
             );
-          },
-        );
+          }
+        })().catch(() => {
+          setPendingAttachments((current) =>
+            current.map((item) =>
+              item.id === queuedItem.id
+                ? { ...item, status: "failed", error: "Failed to process" }
+                : item,
+            ),
+          );
+        });
       }
     }
   };
@@ -402,6 +447,7 @@ function ConversationPage() {
       kind: item.kind,
       prepared: item.prepared,
       videoFile: item.videoFile,
+      originalName: item.originalName,
       videoMeta: item.videoMeta,
       thumbnailBlob: item.thumbnailBlob,
     }));
@@ -457,7 +503,8 @@ function ConversationPage() {
             ...optimisticVideos.map((item, index) => ({
               id: -(optimisticImages.length + index + 1),
               messageId: 0,
-              originalName: item.videoFile?.name ?? "video",
+              originalName:
+                item.originalName ?? item.videoFile?.name ?? "video",
               mimeType:
                 item.videoMeta?.mimeType ??
                 effectiveFileType(item.videoFile as File),
@@ -537,7 +584,7 @@ function ConversationPage() {
             );
             attachments.push({
               objectKey: videoKey,
-              originalName: file.name,
+              originalName: item.originalName ?? file.name,
               mimeType,
               sizeBytes: file.size,
               metadata: {
@@ -767,6 +814,14 @@ function ConversationPage() {
                       aria-hidden="true"
                       className="border-muted-foreground/30 border-t-foreground relative h-6 w-6 animate-spin rounded-full border-2"
                     />
+                    {item.progress !== undefined && (
+                      <div className="absolute right-1 bottom-1 left-1 h-1 overflow-hidden rounded-full bg-black/30">
+                        <div
+                          className="bg-primary h-full transition-[width] duration-150"
+                          style={{ width: `${item.progress * 100}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : item.status === "ready" ? (
                   item.kind === "video" ? (

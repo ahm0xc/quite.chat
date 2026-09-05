@@ -186,7 +186,7 @@ export function ConvoList() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mt-6 flex flex-col gap-1">
+      <div className="mt-6 flex flex-col">
         {[
           ...(localConversations?.length
             ? localConversations
@@ -202,54 +202,58 @@ export function ConvoList() {
                 : 0),
           )
           .map((convo) => (
-            <Link
-              key={convo.id}
-              to="/c/$conversationId"
-              params={{ conversationId: String(convo.id) }}
-              activeProps={{ className: "bg-accent font-medium" }}
-              className="hover:bg-accent flex items-center gap-3 rounded-md px-3 py-2 transition-colors"
-            >
-              {convo.otherUser?.avatarUrl ? (
-                <img
-                  src={convo.otherUser.avatarUrl}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
-                  {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-heading truncate text-sm font-medium">
-                    {convo.otherUser?.displayName ??
-                      convo.otherUser?.username ??
-                      "Unknown"}
-                  </span>
-                  {convo.lastMessage && (
-                    <span className="text-muted-foreground ml-2 shrink-0 text-xs">
-                      {formatTime(convo.lastMessage.createdAt)}
+            <React.Fragment key={convo.id}>
+              <Link
+                to="/c/$conversationId"
+                params={{ conversationId: String(convo.id) }}
+                activeProps={{ className: "bg-accent font-medium" }}
+                className="hover:bg-accent flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:[&+div]:opacity-0 [&.bg-accent+div]:opacity-0"
+              >
+                {convo.otherUser?.avatarUrl ? (
+                  <img
+                    src={convo.otherUser.avatarUrl}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
+                    {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-heading truncate text-sm font-medium">
+                      {convo.otherUser?.displayName ??
+                        convo.otherUser?.username ??
+                        "Unknown"}
                     </span>
-                  )}
-                </div>
-                {convo.lastMessage && (
-                  <p className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate">
-                      {convo.lastMessage.body}
-                    </span>
-                    {"unreadCount" in convo && (convo.unreadCount ?? 0) > 0 && (
-                      <span
-                        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white"
-                        aria-label={`${convo.unreadCount} unread messages`}
-                      >
-                        {convo.unreadCount}
+                    {convo.lastMessage && (
+                      <span className="text-muted-foreground ml-2 shrink-0 text-xs">
+                        {formatTime(convo.lastMessage.createdAt)}
                       </span>
                     )}
-                  </p>
-                )}
-              </div>
-            </Link>
+                  </div>
+                  {convo.lastMessage && (
+                    <p className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate">
+                        {convo.lastMessage.body}
+                      </span>
+                      {"unreadCount" in convo &&
+                        (convo.unreadCount ?? 0) > 0 && (
+                          <span
+                            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white"
+                            aria-label={`${convo.unreadCount} unread messages`}
+                          >
+                            {convo.unreadCount}
+                          </span>
+                        )}
+                    </p>
+                  )}
+                </div>
+              </Link>
+
+              <div className="bg-border mx-4 h-px transition-opacity has-[+a.bg-accent]:opacity-0 has-[+a:hover]:opacity-0" />
+            </React.Fragment>
           ))}
         {(localConversations?.length
           ? localConversations

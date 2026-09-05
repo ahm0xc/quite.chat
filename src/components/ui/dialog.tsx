@@ -1,9 +1,9 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "@phosphor-icons/react";
-import type { ComponentProps } from "react";
+import { cn } from "cn";
+import * as React from "react";
 
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -77,7 +77,7 @@ function DialogContent({
   );
 }
 
-function DialogHeader({ className, ...props }: ComponentProps<"div">) {
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
@@ -92,7 +92,7 @@ function DialogFooter({
   showCloseButton = false,
   children,
   ...props
-}: ComponentProps<"div"> & {
+}: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
   return (

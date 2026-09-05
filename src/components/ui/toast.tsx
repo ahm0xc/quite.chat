@@ -1,3 +1,5 @@
+"use client";
+
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import {
   XIcon,
@@ -7,10 +9,10 @@ import {
   XCircleIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
+import { cn } from "cn";
+import * as React from "react";
 
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 const toast = ToastPrimitive.createToastManager();
 
@@ -136,7 +138,7 @@ function ToastClose({
 }
 
 function ToastIcon({ type }: { type: string | undefined }) {
-  let icon: ReactNode = null;
+  let icon: React.ReactNode = null;
 
   if (type === "success") {
     icon = <CheckCircleIcon aria-hidden="true" />;

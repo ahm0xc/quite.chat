@@ -2,10 +2,10 @@
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "@phosphor-icons/react";
-import type { ComponentProps } from "react";
+import { cn } from "cn";
+import * as React from "react";
 
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -79,7 +79,7 @@ function SheetContent({
   );
 }
 
-function SheetHeader({ className, ...props }: ComponentProps<"div">) {
+function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
@@ -89,7 +89,7 @@ function SheetHeader({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-function SheetFooter({ className, ...props }: ComponentProps<"div">) {
+function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"

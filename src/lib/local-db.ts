@@ -9,6 +9,7 @@ export type LocalAttachment = {
   sizeBytes: number;
   metadata: Record<string, unknown> | null;
   url?: string;
+  posterUrl?: string;
   objectKey?: string;
   willExpireAt?: Date;
 };

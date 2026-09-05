@@ -30,7 +30,10 @@ const initialConfig = {
   },
 };
 
-function SubmitOnEnterPlugin({ onSubmit }: Pick<ComposerProps, "onSubmit">) {
+function SubmitOnEnterPlugin({
+  onSubmit,
+  canSubmit = true,
+}: Pick<ComposerProps, "onSubmit"> & Pick<ComposerProps, "canSubmit">) {
   const [editor] = useLexicalComposerContext();
 
   React.useEffect(
@@ -39,6 +42,7 @@ function SubmitOnEnterPlugin({ onSubmit }: Pick<ComposerProps, "onSubmit">) {
         KEY_ENTER_COMMAND,
         (event) => {
           if (event?.shiftKey) return false;
+          if (!canSubmit) return true;
 
           event?.preventDefault();
 
@@ -54,7 +58,7 @@ function SubmitOnEnterPlugin({ onSubmit }: Pick<ComposerProps, "onSubmit">) {
         },
         COMMAND_PRIORITY_HIGH,
       ),
-    [editor, onSubmit],
+    [editor, onSubmit, canSubmit],
   );
 
   return null;
@@ -113,7 +117,7 @@ export function Composer({
       >
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv,.mov"
           multiple
           className="hidden"
           ref={fileInputRef}
@@ -148,7 +152,7 @@ export function Composer({
             editorState.read(() => onChange($getRoot().getTextContent()));
           }}
         />
-        <SubmitOnEnterPlugin onSubmit={onSubmit} />
+        <SubmitOnEnterPlugin onSubmit={onSubmit} canSubmit={canSubmit} />
         <div
           aria-label="right-actions"
           className="absolute top-0 right-0 flex gap-1"
@@ -157,8 +161,8 @@ export function Composer({
             type="button"
             size="icon"
             variant="ghost"
-            aria-label="Attach images"
-            title="Attach images"
+            aria-label="Attach images or videos"
+            title="Attach images or videos"
             disabled={disabled}
             onClick={() => fileInputRef.current?.click()}
           >

@@ -1,2 +1,2 @@
 export * from "./message-bubble";
-export * from "./image-grid";
+export * from "./media-grid";

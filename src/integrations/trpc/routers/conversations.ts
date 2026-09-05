@@ -16,19 +16,50 @@ import { createR2DownloadUrl, createR2UploadUrl } from "~/lib/r2";
 
 import { protectedProcedure } from "../init";
 
+const attachmentMimeType = z
+  .string()
+  .regex(/^(image\/|video\/(mp4|webm|quicktime|x-matroska|mkv))/);
+
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+async function withAttachmentUrls<
+  T extends { objectKey: string; metadata: Record<string, unknown> | null },
+>(rows: Array<T>) {
+  return Promise.all(
+    rows.map(async ({ objectKey, metadata, ...rest }) => {
+      const posterKey = metadata?.["posterKey"];
+      return {
+        ...rest,
+        metadata,
+        objectKey,
+        url: await createR2DownloadUrl(objectKey),
+        posterUrl:
+          typeof posterKey === "string" && posterKey
+            ? await createR2DownloadUrl(posterKey)
+            : undefined,
+        willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
+      };
+    }),
+  );
+}
+
 export const conversationsRouter = {
   createUploadUrl: protectedProcedure
     .input(
-      z.object({
-        conversationId: z.number(),
-        fileName: z.string().min(1).max(255),
-        mimeType: z.string().regex(/^image\//),
-        sizeBytes: z
-          .number()
-          .int()
-          .positive()
-          .max(10 * 1024 * 1024),
-      }),
+      z
+        .object({
+          conversationId: z.number(),
+          fileName: z.string().min(1).max(255),
+          mimeType: attachmentMimeType,
+          sizeBytes: z.number().int().positive().max(VIDEO_MAX_BYTES),
+        })
+        .refine(
+          (value) =>
+            value.mimeType.startsWith("video/") ||
+            value.sizeBytes <= IMAGE_MAX_BYTES,
+          "Image too large",
+        ),
     )
     .mutation(async ({ ctx, input }) => {
       await assertConversationMember(ctx.userId, input.conversationId);
@@ -306,15 +337,10 @@ export const conversationsRouter = {
           return Promise.all(
             rows.map(async (row) => ({
               ...row,
-              attachments: await Promise.all(
-                attachments
-                  .filter((attachment) => attachment.messageId === row.id)
-                  .map(async ({ objectKey, ...attachment }) => ({
-                    ...attachment,
-                    objectKey,
-                    url: await createR2DownloadUrl(objectKey),
-                    willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
-                  })),
+              attachments: await withAttachmentUrls(
+                attachments.filter(
+                  (attachment) => attachment.messageId === row.id,
+                ),
               ),
             })),
           );
@@ -361,17 +387,22 @@ export const conversationsRouter = {
               z.object({
                 objectKey: z.string().min(1),
                 originalName: z.string().max(255).optional(),
-                mimeType: z.string().regex(/^image\//),
-                sizeBytes: z
-                  .number()
-                  .int()
-                  .positive()
-                  .max(10 * 1024 * 1024),
+                mimeType: attachmentMimeType,
+                sizeBytes: z.number().int().positive().max(VIDEO_MAX_BYTES),
                 metadata: z.record(z.string(), z.unknown()).optional(),
               }),
             )
             .max(10)
-            .default([]),
+            .default([])
+            .refine(
+              (items) =>
+                items.every(
+                  (item) =>
+                    item.mimeType.startsWith("video/") ||
+                    item.sizeBytes <= IMAGE_MAX_BYTES,
+                ),
+              "Image too large",
+            ),
         })
         .refine(
           (value) =>
@@ -438,14 +469,7 @@ export const conversationsRouter = {
 
       const eventMessage = {
         ...msg,
-        attachments: await Promise.all(
-          attachmentRows.map(async ({ objectKey, ...attachment }) => ({
-            ...attachment,
-            objectKey,
-            url: await createR2DownloadUrl(objectKey),
-            willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
-          })),
-        ),
+        attachments: await withAttachmentUrls(attachmentRows),
       };
       try {
         await pusherServer.trigger(
@@ -467,6 +491,7 @@ export const conversationsRouter = {
         .select({
           id: messageAttachments.id,
           objectKey: messageAttachments.objectKey,
+          metadata: messageAttachments.metadata,
           conversationId: messages.conversationId,
         })
         .from(messageAttachments)
@@ -475,10 +500,14 @@ export const conversationsRouter = {
         .limit(1);
       if (!rows[0]) throw new Error("Attachment not found");
       await assertConversationMember(ctx.userId, rows[0].conversationId);
+      const [resolved] = await withAttachmentUrls([
+        { objectKey: rows[0].objectKey, metadata: rows[0].metadata },
+      ]);
       return {
-        url: await createR2DownloadUrl(rows[0].objectKey),
+        url: resolved.url,
+        posterUrl: resolved.posterUrl,
         objectKey: rows[0].objectKey,
-        willExpireAt: new Date(Date.now() + 15 * 60 * 1000),
+        willExpireAt: resolved.willExpireAt,
       };
     }),
 } satisfies TRPCRouterRecord;

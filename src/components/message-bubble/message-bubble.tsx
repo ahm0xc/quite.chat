@@ -17,7 +17,7 @@ import type { RouterOutputs } from "~/integrations/trpc/router";
 import type { LocalMessage } from "~/lib/local-db";
 import { cn } from "~/lib/utils";
 
-import { ImageGrid } from "./image-grid";
+import { MediaGrid, isPlayableVideo } from "./media-grid";
 
 export type Message = RouterOutputs["conversations"]["messages"][number];
 export type UIMessage = Omit<Message, "id" | "deletedAt"> & {
@@ -116,12 +116,19 @@ export function MessageBubble({
               (message as UIMessage).status === "failed" && "opacity-60",
             )}
           >
-            <ImageGrid
+            <MediaGrid
               attachments={attachments}
               conversationId={conversationId}
             />
             {attachments
-              .filter((attachment) => !attachment.mimeType.startsWith("image/"))
+              .filter(
+                (attachment) =>
+                  !attachment.mimeType.startsWith("image/") &&
+                  !(
+                    attachment.mimeType.startsWith("video/") &&
+                    isPlayableVideo(attachment.mimeType)
+                  ),
+              )
               .map((attachment) => (
                 <a
                   key={attachment.id}

@@ -18,7 +18,7 @@ import { Button } from "~/components/ui/button";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
 import { useTRPC } from "~/integrations/trpc/react";
-import { prepareImage } from "~/lib/image-processing";
+import { prepareImage, prepareVideo } from "~/lib/image-processing";
 import {
   localDb,
   markLocalMessageDeleted,
@@ -33,9 +33,51 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
   component: ConversationPage,
 });
 
+type PendingAttachment = {
+  id: string;
+  kind: "image" | "video";
+  status: "processing" | "ready" | "failed";
+  previewUrl: string;
+  prepared?: Awaited<ReturnType<typeof prepareImage>>;
+  videoFile?: File;
+  videoMeta?: Awaited<ReturnType<typeof prepareVideo>>;
+  thumbnailBlob?: Blob;
+  thumbnailUrl?: string;
+  error?: string;
+};
+
+function isSupportedFile(file: File) {
+  return (
+    effectiveFileType(file).startsWith("image/") ||
+    [
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+      "video/x-matroska",
+      "video/mkv",
+    ].includes(effectiveFileType(file))
+  );
+}
+
+function isBasicVideoFile(file: File) {
+  return ["video/quicktime", "video/x-matroska", "video/mkv"].includes(
+    effectiveFileType(file),
+  );
+}
+
+function effectiveFileType(file: File) {
+  if (file.type) return file.type;
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".mov")) return "video/quicktime";
+  if (name.endsWith(".mkv")) return "video/x-matroska";
+  return "";
+}
+
 function ConversationPage() {
   const [body, setBody] = React.useState("");
-  const [files, setFiles] = React.useState<Array<File>>([]);
+  const [pendingAttachments, setPendingAttachments] = React.useState<
+    Array<PendingAttachment>
+  >([]);
   const [isDraggingFiles, setIsDraggingFiles] = React.useState(false);
   const [optimisticMessages, setOptimisticMessages] = React.useState<
     Array<UIMessage>
@@ -44,10 +86,7 @@ function ConversationPage() {
     React.useState<Set<number>>(new Set());
   const dragDepth = React.useRef(0);
   const latestMessageRef = React.useRef<HTMLLIElement>(null);
-  const filePreviews = React.useMemo(
-    () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    [files],
-  );
+  const pendingAttachmentsRef = React.useRef<Array<PendingAttachment>>([]);
 
   const { conversationId } = Route.useParams();
   const trpc = useTRPC();
@@ -74,13 +113,6 @@ function ConversationPage() {
   });
   const { mutate: markRead } = useMutation(
     trpc.conversations.markRead.mutationOptions(),
-  );
-
-  React.useEffect(
-    () => () => {
-      for (const preview of filePreviews) URL.revokeObjectURL(preview.url);
-    },
-    [filePreviews],
   );
 
   // stale optimistic state is reset during render above (prevConvoId check)
@@ -247,22 +279,157 @@ function ConversationPage() {
     }),
   );
 
+  const queueFiles = (incoming: Array<File>) => {
+    const accepted = incoming.filter(isSupportedFile);
+    if (!accepted.length) return;
+    const queued: Array<PendingAttachment> = accepted.map((file) => ({
+      id:
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `pending-${Math.random().toString(36).slice(2)}`,
+      kind: effectiveFileType(file).startsWith("image/") ? "image" : "video",
+      status: "processing",
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setPendingAttachments((current) => [...current, ...queued]);
+    for (let index = 0; index < accepted.length; index++) {
+      const file = accepted[index];
+      const queuedItem = queued[index];
+      if (queuedItem.kind === "image") {
+        void prepareImage(file).then(
+          (prepared) => {
+            const preparedUrl = URL.createObjectURL(prepared.blob);
+            setPendingAttachments((current) => {
+              if (!current.some((item) => item.id === queuedItem.id)) {
+                URL.revokeObjectURL(preparedUrl);
+                return current;
+              }
+              return current.map((item) =>
+                item.id === queuedItem.id
+                  ? {
+                      ...item,
+                      status: "ready",
+                      prepared,
+                      previewUrl: preparedUrl,
+                    }
+                  : item,
+              );
+            });
+            URL.revokeObjectURL(queuedItem.previewUrl);
+          },
+          () => {
+            setPendingAttachments((current) =>
+              current.map((item) =>
+                item.id === queuedItem.id
+                  ? { ...item, status: "failed", error: "Failed to process" }
+                  : item,
+              ),
+            );
+          },
+        );
+      } else {
+        void prepareVideo(file).then(
+          (meta) => {
+            const thumbnailUrl = URL.createObjectURL(meta.thumbnailBlob);
+            setPendingAttachments((current) => {
+              if (!current.some((item) => item.id === queuedItem.id)) {
+                URL.revokeObjectURL(thumbnailUrl);
+                return current;
+              }
+              return current.map((item) =>
+                item.id === queuedItem.id
+                  ? {
+                      ...item,
+                      status: "ready",
+                      videoFile: file,
+                      videoMeta: meta,
+                      thumbnailBlob: meta.thumbnailBlob,
+                      thumbnailUrl,
+                    }
+                  : item,
+              );
+            });
+          },
+          () => {
+            // mov/mkv often can't be parsed by this browser (but may play
+            // elsewhere), so let them send without a thumbnail instead of
+            // blocking; mp4/webm failures stay blocked as likely corrupt.
+            if (!isBasicVideoFile(file)) {
+              setPendingAttachments((current) =>
+                current.map((item) =>
+                  item.id === queuedItem.id
+                    ? { ...item, status: "failed", error: "Failed to process" }
+                    : item,
+                ),
+              );
+              return;
+            }
+            setPendingAttachments((current) =>
+              current.map((item) =>
+                item.id === queuedItem.id
+                  ? { ...item, status: "ready", videoFile: file }
+                  : item,
+              ),
+            );
+          },
+        );
+      }
+    }
+  };
+
+  const removePendingAttachment = (id: string) => {
+    setPendingAttachments((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+        if (target.thumbnailUrl) URL.revokeObjectURL(target.thumbnailUrl);
+      }
+      return current.filter((item) => item.id !== id);
+    });
+  };
+
   const handleSend = (value = body) => {
     const messageBody = value.trim();
-    if (!messageBody && !files.length) return;
-    const selectedFiles = files;
+    if (pendingAttachments.some((item) => item.status === "processing")) return;
+    const readyItems = pendingAttachments.filter(
+      (item) =>
+        item.status === "ready" &&
+        ((item.kind === "image" && item.prepared) ||
+          (item.kind === "video" && item.videoFile)),
+    );
+    if (!messageBody && !readyItems.length) return;
+    const snapshot = readyItems.map((item) => ({
+      kind: item.kind,
+      prepared: item.prepared,
+      videoFile: item.videoFile,
+      videoMeta: item.videoMeta,
+      thumbnailBlob: item.thumbnailBlob,
+    }));
+    const pendingUrls = pendingAttachments.flatMap((item) =>
+      item.thumbnailUrl
+        ? [item.previewUrl, item.thumbnailUrl]
+        : [item.previewUrl],
+    );
     const tempId = `temp-${Math.random().toString(36).slice(2)}`;
-    setFiles([]);
+    setPendingAttachments([]);
+    for (const url of pendingUrls) URL.revokeObjectURL(url);
     setBody("");
     void (async () => {
-      // prepare first so pending preview uses same dimensions/compression as sent
-      const preparedList: Array<Awaited<ReturnType<typeof prepareImage>>> = [];
-      for (const file of selectedFiles) {
-        preparedList.push(await prepareImage(file));
-      }
-      const optimisticUrls = preparedList.map((p) =>
+      const optimisticImages = snapshot
+        .filter((item) => item.kind === "image" && item.prepared)
+        .map((item) => item.prepared as NonNullable<typeof item.prepared>);
+      const optimisticVideos = snapshot.filter(
+        (item) => item.kind === "video" && item.videoFile,
+      );
+      const optimisticImageUrls = optimisticImages.map((p) =>
         URL.createObjectURL(p.blob),
       );
+      const optimisticVideoUrls = optimisticVideos.map((item) => ({
+        url: URL.createObjectURL(item.videoFile as File),
+        posterUrl: item.thumbnailBlob
+          ? URL.createObjectURL(item.thumbnailBlob)
+          : undefined,
+      }));
       setOptimisticMessages((current) => [
         ...current,
         {
@@ -274,47 +441,113 @@ function ConversationPage() {
           username: me.data?.username ?? null,
           status: "sending",
           deletedAt: null,
-          attachments: preparedList.map((prepared, index) => ({
-            id: -(index + 1),
-            messageId: 0,
-            originalName: prepared.originalName,
-            mimeType: prepared.mimeType,
-            sizeBytes: prepared.blob.size,
-            metadata: {
-              width: prepared.width,
-              height: prepared.height,
-            },
-            url: optimisticUrls[index],
-          })),
+          attachments: [
+            ...optimisticImages.map((prepared, index) => ({
+              id: -(index + 1),
+              messageId: 0,
+              originalName: prepared.originalName,
+              mimeType: prepared.mimeType,
+              sizeBytes: prepared.blob.size,
+              metadata: {
+                width: prepared.width,
+                height: prepared.height,
+              },
+              url: optimisticImageUrls[index],
+            })),
+            ...optimisticVideos.map((item, index) => ({
+              id: -(optimisticImages.length + index + 1),
+              messageId: 0,
+              originalName: item.videoFile?.name ?? "video",
+              mimeType:
+                item.videoMeta?.mimeType ??
+                effectiveFileType(item.videoFile as File),
+              sizeBytes: item.videoFile?.size ?? 0,
+              metadata: {
+                width: item.videoMeta?.width,
+                height: item.videoMeta?.height,
+                duration: item.videoMeta?.duration,
+              },
+              url: optimisticVideoUrls[index].url,
+              posterUrl: optimisticVideoUrls[index].posterUrl,
+            })),
+          ],
         },
       ]);
+      const uploadBlob = async (
+        fileName: string,
+        mimeType: string,
+        sizeBytes: number,
+        blob: Blob,
+      ) => {
+        const upload = await uploadUrl.mutateAsync({
+          conversationId: convoId,
+          fileName,
+          mimeType,
+          sizeBytes,
+        });
+        const response = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": mimeType },
+          body: blob,
+        });
+        if (!response.ok) throw new Error("File upload failed");
+        return upload.objectKey;
+      };
       try {
         const attachments = [];
-        for (const prepared of preparedList) {
-          const upload = await uploadUrl.mutateAsync({
-            conversationId: convoId,
-            fileName: prepared.fileName,
-            mimeType: prepared.mimeType,
-            sizeBytes: prepared.blob.size,
-          });
-          const response = await fetch(upload.uploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": prepared.mimeType },
-            body: prepared.blob,
-          });
-          if (!response.ok) throw new Error("File upload failed");
-          attachments.push({
-            objectKey: upload.objectKey,
-            originalName: prepared.originalName,
-            mimeType: prepared.mimeType,
-            sizeBytes: prepared.blob.size,
-            metadata: {
-              width: prepared.width,
-              height: prepared.height,
-              originalMimeType: prepared.originalMimeType,
-              originalSizeBytes: prepared.originalSizeBytes,
-            },
-          });
+        for (const item of snapshot) {
+          if (item.kind === "image" && item.prepared) {
+            const prepared = item.prepared;
+            const objectKey = await uploadBlob(
+              prepared.fileName,
+              prepared.mimeType,
+              prepared.blob.size,
+              prepared.blob,
+            );
+            attachments.push({
+              objectKey,
+              originalName: prepared.originalName,
+              mimeType: prepared.mimeType,
+              sizeBytes: prepared.blob.size,
+              metadata: {
+                width: prepared.width,
+                height: prepared.height,
+                originalMimeType: prepared.originalMimeType,
+                originalSizeBytes: prepared.originalSizeBytes,
+              },
+            });
+          } else if (item.kind === "video" && item.videoFile) {
+            const file = item.videoFile;
+            const meta = item.videoMeta;
+            const mimeType = meta?.mimeType ?? effectiveFileType(file);
+            let posterKey: string | undefined;
+            if (meta && item.thumbnailBlob) {
+              posterKey = await uploadBlob(
+                meta.posterFileName,
+                "image/webp",
+                item.thumbnailBlob.size,
+                item.thumbnailBlob,
+              );
+            }
+            const videoKey = await uploadBlob(
+              file.name,
+              mimeType,
+              file.size,
+              file,
+            );
+            attachments.push({
+              objectKey: videoKey,
+              originalName: file.name,
+              mimeType,
+              sizeBytes: file.size,
+              metadata: {
+                width: meta?.width,
+                height: meta?.height,
+                duration: meta?.duration,
+                ...(posterKey ? { posterKey } : {}),
+              },
+            });
+          }
         }
         await send.mutateAsync({
           conversationId: convoId,
@@ -336,11 +569,7 @@ function ConversationPage() {
   };
 
   const addDroppedFiles = (fileList: FileList | null) => {
-    const droppedFiles = Array.from(fileList ?? []).filter((file) =>
-      file.type.startsWith("image/"),
-    );
-    if (droppedFiles.length)
-      setFiles((current) => [...current, ...droppedFiles]);
+    queueFiles(Array.from(fileList ?? []));
   };
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
@@ -376,11 +605,34 @@ function ConversationPage() {
   );
   const renderedMessages = [...baseMessages, ...optimisticMessages];
   const users = [...(cachedUsers ?? []), ...(usersByUsername.data ?? [])];
+  const isProcessingAttachments = pendingAttachments.some(
+    (item) => item.status === "processing",
+  );
+  const hasReadyAttachments = pendingAttachments.some(
+    (item) => item.status === "ready",
+  );
+  const canSubmit =
+    Boolean(body.trim() || hasReadyAttachments) && !isProcessingAttachments;
   const latestMessage = [...renderedMessages]
     .reverse()
     .find((message) => typeof message.id === "number");
   const { hasNewMessages, messagesListRef, rowVirtualizer, scrollToLatest } =
     useMessageScroll(renderedMessages.length, convoId);
+
+  React.useEffect(() => {
+    pendingAttachmentsRef.current = pendingAttachments;
+  }, [pendingAttachments]);
+
+  React.useEffect(
+    () => () => {
+      for (const item of pendingAttachmentsRef.current) {
+        URL.revokeObjectURL(item.previewUrl);
+        if (item.thumbnailUrl) URL.revokeObjectURL(item.thumbnailUrl);
+      }
+    },
+    [],
+  );
+
   React.useEffect(() => {
     const message = latestMessage;
     const element = latestMessageRef.current;
@@ -412,7 +664,9 @@ function ConversationPage() {
       {isDraggingFiles && (
         <div className="bg-background/80 pointer-events-none absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="border-primary bg-primary/10 rounded-lg border-2 border-dashed px-8 py-6 text-center">
-            <p className="text-lg font-medium">Drop images to attach</p>
+            <p className="text-lg font-medium">
+              Drop images or videos to attach
+            </p>
             <p className="text-muted-foreground mt-1 text-sm">
               They will appear above the composer
             </p>
@@ -480,25 +734,84 @@ function ConversationPage() {
           </Button>
         )}
 
-        {filePreviews.length > 0 && (
+        {pendingAttachments.length > 0 && (
           <div className="flex gap-2 overflow-x-auto px-3 pt-3">
-            {filePreviews.map((preview, index) => (
+            {pendingAttachments.map((item) => (
               <div
-                key={`${preview.file.name}-${preview.file.lastModified}-${index}`}
+                key={item.id}
                 className="bg-muted relative h-20 w-20 shrink-0 overflow-hidden rounded-md border"
               >
-                <img
-                  src={preview.url}
-                  alt={preview.file.name}
-                  className="h-full w-full object-cover"
-                />
+                {item.status === "processing" ? (
+                  <div
+                    aria-label="Processing attachment"
+                    className="flex h-full w-full items-center justify-center"
+                  >
+                    {item.kind === "video" ? (
+                      <video
+                        src={item.previewUrl}
+                        aria-hidden="true"
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="absolute inset-0 h-full w-full object-cover opacity-50"
+                      />
+                    ) : item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 h-full w-full object-cover opacity-50"
+                      />
+                    ) : null}
+                    <span
+                      aria-hidden="true"
+                      className="border-muted-foreground/30 border-t-foreground relative h-6 w-6 animate-spin rounded-full border-2"
+                    />
+                  </div>
+                ) : item.status === "ready" ? (
+                  item.kind === "video" ? (
+                    item.thumbnailUrl ? (
+                      <video
+                        src={item.previewUrl}
+                        poster={item.thumbnailUrl}
+                        aria-label="Video attachment preview"
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        aria-label="Video attachment preview"
+                        className="text-muted-foreground flex h-full w-full items-center justify-center overflow-hidden px-1 text-center text-[10px] break-all"
+                      >
+                        {item.videoFile?.name ?? "video"}
+                      </div>
+                    )
+                  ) : (
+                    <img
+                      src={item.previewUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  )
+                ) : (
+                  <div
+                    aria-label="Attachment failed to process"
+                    className="text-destructive flex h-full w-full items-center justify-center px-1 text-center text-xs"
+                  >
+                    Failed
+                  </div>
+                )}
                 <button
                   type="button"
-                  aria-label={`Remove ${preview.file.name}`}
-                  className="bg-background/90 absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none shadow"
-                  onClick={() =>
-                    setFiles((current) => current.filter((_, i) => i !== index))
+                  aria-label={
+                    item.status === "processing"
+                      ? "Remove processing attachment"
+                      : "Remove attachment"
                   }
+                  className="bg-background/90 absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none shadow"
+                  onClick={() => removePendingAttachment(item.id)}
                 >
                   ×{" "}
                 </button>
@@ -511,10 +824,8 @@ function ConversationPage() {
           <Composer
             onChange={setBody}
             onSubmit={handleSend}
-            canSubmit={Boolean(body.trim() || files.length)}
-            onFilesSelected={(selected) =>
-              setFiles((current) => [...current, ...selected])
-            }
+            canSubmit={canSubmit}
+            onFilesSelected={queueFiles}
           />
         </div>
       </div>

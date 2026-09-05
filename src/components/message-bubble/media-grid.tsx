@@ -256,7 +256,7 @@ function VideoPlayer({
         </button>
       )}
       {isLoaded && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/50 to-transparent px-3 pt-10 pb-2 text-white opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/50 to-transparent px-3 pt-10 pb-2 text-white opacity-100 transition-opacity duration-200 sm:pointer-events-none sm:opacity-0 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100">
           <input
             type="range"
             min={0}

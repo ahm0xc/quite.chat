@@ -487,6 +487,7 @@ function ConversationPage() {
           username: me.data?.username ?? null,
           status: "sending",
           deletedAt: null,
+          uploadProgress: 0,
           attachments: [
             ...optimisticImages.map((prepared, index) => ({
               id: -(index + 1),
@@ -520,29 +521,60 @@ function ConversationPage() {
           ],
         },
       ]);
-      const uploadBlob = async (
+      const uploadBlob = (
         fileName: string,
         mimeType: string,
         sizeBytes: number,
         blob: Blob,
-      ) => {
-        const upload = await uploadUrl.mutateAsync({
-          conversationId: convoId,
-          fileName,
-          mimeType,
-          sizeBytes,
-        });
-        const response = await fetch(upload.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": mimeType },
-          body: blob,
-        });
-        if (!response.ok) throw new Error("File upload failed");
-        return upload.objectKey;
+        onProgress: (percent: number) => void,
+      ): Promise<string> => {
+        const doUpload = async () => {
+          const upload = await uploadUrl.mutateAsync({
+            conversationId: convoId,
+            fileName,
+            mimeType,
+            sizeBytes,
+          });
+          return new Promise<string>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener("progress", (event) => {
+              if (event.lengthComputable) {
+                onProgress(Math.round((event.loaded / event.total) * 100));
+              }
+            });
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(upload.objectKey);
+              } else {
+                reject(new Error("File upload failed"));
+              }
+            });
+            xhr.addEventListener("error", () =>
+              reject(new Error("File upload failed")),
+            );
+            xhr.open("PUT", upload.uploadUrl);
+            xhr.setRequestHeader("Content-Type", mimeType);
+            xhr.send(blob);
+          });
+        };
+        return doUpload();
       };
+
+      const updateProgress = (percent: number) => {
+        setOptimisticMessages((current) =>
+          current.map((item) =>
+            item.id === tempId ? { ...item, uploadProgress: percent } : item,
+          ),
+        );
+      };
+
       try {
+        const totalAttachments = snapshot.length;
         const attachments = [];
-        for (const item of snapshot) {
+        for (let i = 0; i < snapshot.length; i++) {
+          const item = snapshot[i];
+          const baseProgress = (i / totalAttachments) * 100;
+          const weight = 100 / totalAttachments;
           if (item.kind === "image" && item.prepared) {
             const prepared = item.prepared;
             const objectKey = await uploadBlob(
@@ -550,6 +582,8 @@ function ConversationPage() {
               prepared.mimeType,
               prepared.blob.size,
               prepared.blob,
+              (percent) =>
+                updateProgress(baseProgress + (percent / 100) * weight),
             );
             attachments.push({
               objectKey,
@@ -574,6 +608,8 @@ function ConversationPage() {
                 "image/webp",
                 item.thumbnailBlob.size,
                 item.thumbnailBlob,
+                (percent) =>
+                  updateProgress(baseProgress + (percent / 100) * weight * 0.1),
               );
             }
             const videoKey = await uploadBlob(
@@ -581,6 +617,10 @@ function ConversationPage() {
               mimeType,
               file.size,
               file,
+              (percent) =>
+                updateProgress(
+                  baseProgress + weight * 0.1 + (percent / 100) * weight * 0.9,
+                ),
             );
             attachments.push({
               objectKey: videoKey,
@@ -608,7 +648,9 @@ function ConversationPage() {
       } catch {
         setOptimisticMessages((current) =>
           current.map((item) =>
-            item.id === tempId ? { ...item, status: "failed" } : item,
+            item.id === tempId
+              ? { ...item, status: "failed", uploadProgress: undefined }
+              : item,
           ),
         );
       }

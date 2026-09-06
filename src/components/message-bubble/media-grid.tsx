@@ -12,6 +12,8 @@ import { useTRPC } from "~/integrations/trpc/react";
 import { localDb } from "~/lib/local-db";
 import { cn } from "~/lib/utils";
 
+import { CircularProgress } from "./circular-progress";
+
 type ImageAttachment = {
   id: number;
   messageId?: number;
@@ -36,10 +38,12 @@ export function MediaGridImage({
   attachment,
   className,
   single,
+  uploadProgress,
 }: {
   attachment: ImageAttachment;
   className?: string;
   single?: boolean;
+  uploadProgress?: number;
 }) {
   const [displayUrl, setDisplayUrl] = React.useState(attachment.url);
   const [loaded, setLoaded] = React.useState(false);
@@ -142,6 +146,9 @@ export function MediaGridImage({
           loaded ? "opacity-100" : "opacity-0",
         )}
       />
+      {uploadProgress !== undefined && uploadProgress < 100 && (
+        <CircularProgress progress={uploadProgress} />
+      )}
     </div>
   );
 }
@@ -318,8 +325,10 @@ function VideoPlayer({
 
 export function MediaGridVideoItem({
   attachment,
+  uploadProgress,
 }: {
   attachment: ImageAttachment;
+  uploadProgress?: number;
 }) {
   const trpc = useTRPC();
   const isBlob = attachment.url?.startsWith("blob:");
@@ -385,20 +394,27 @@ export function MediaGridVideoItem({
     meta?.width && meta.height ? `${meta.width} / ${meta.height}` : undefined;
 
   return (
-    <VideoPlayer
-      src={displayUrl}
-      poster={displayPosterUrl}
-      label={attachment.originalName ?? "Video attachment"}
-      aspectRatio={aspectRatio}
-    />
+    <div className="relative">
+      <VideoPlayer
+        src={displayUrl}
+        poster={displayPosterUrl}
+        label={attachment.originalName ?? "Video attachment"}
+        aspectRatio={aspectRatio}
+      />
+      {uploadProgress !== undefined && uploadProgress < 100 && (
+        <CircularProgress progress={uploadProgress} />
+      )}
+    </div>
   );
 }
 
 export function MediaGrid({
   attachments,
+  uploadProgress,
 }: {
   attachments: Array<ImageAttachment>;
   conversationId?: number;
+  uploadProgress?: number;
 }) {
   const images = attachments.filter((attachment) =>
     attachment.mimeType.startsWith("image/"),
@@ -414,7 +430,11 @@ export function MediaGrid({
   return (
     <div className="flex max-w-full flex-col gap-2">
       {videos.map((attachment) => (
-        <MediaGridVideoItem key={attachment.id} attachment={attachment} />
+        <MediaGridVideoItem
+          key={attachment.id}
+          attachment={attachment}
+          uploadProgress={uploadProgress}
+        />
       ))}
       {images.length > 0 && (
         <div
@@ -430,6 +450,7 @@ export function MediaGrid({
               key={attachment.id}
               attachment={attachment}
               single={images.length === 1}
+              uploadProgress={uploadProgress}
             />
           ))}
         </div>

@@ -24,6 +24,7 @@ export type UIMessage = Omit<Message, "id" | "deletedAt"> & {
   id: number | string;
   deletedAt?: Date | string | null;
   status?: "sending" | "sent" | "failed";
+  uploadProgress?: number;
 };
 
 function formatMessageTime(value: Date | string | number | null | undefined) {
@@ -119,6 +120,7 @@ export function MessageBubble({
             <MediaGrid
               attachments={attachments}
               conversationId={conversationId}
+              uploadProgress={(message as UIMessage).uploadProgress}
             />
             {attachments
               .filter(

@@ -48,8 +48,6 @@ function SubmitOnEnterPlugin({
 
           editor.getEditorState().read(() => {
             const value = $getRoot().getTextContent().trim();
-            if (!value) return;
-
             onSubmit(value);
             editor.update(() => $getRoot().clear());
           });

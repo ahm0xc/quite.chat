@@ -27,6 +27,7 @@ import {
 } from "~/lib/local-db";
 import type { LocalMessage } from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
+import { preparePdf } from "~/lib/pdf-processing";
 import { cn } from "~/lib/utils";
 import { isTranscodeSupported, transcodeToMp4 } from "~/lib/video-transcode";
 
@@ -36,12 +37,14 @@ export const Route = createFileRoute("/_app/c/$conversationId")({
 
 type PendingAttachment = {
   id: string;
-  kind: "image" | "video";
+  kind: "image" | "video" | "pdf";
   status: "processing" | "ready" | "failed";
   previewUrl: string;
   prepared?: Awaited<ReturnType<typeof prepareImage>>;
   videoFile?: File;
   videoMeta?: Awaited<ReturnType<typeof prepareVideo>>;
+  pdfFile?: File;
+  pdfMeta?: Awaited<ReturnType<typeof preparePdf>>;
   originalName?: string;
   thumbnailBlob?: Blob;
   thumbnailUrl?: string;
@@ -52,6 +55,7 @@ type PendingAttachment = {
 function isSupportedFile(file: File) {
   return (
     effectiveFileType(file).startsWith("image/") ||
+    effectiveFileType(file) === "application/pdf" ||
     [
       "video/mp4",
       "video/webm",
@@ -75,6 +79,7 @@ function effectiveFileType(file: File) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".mov")) return "video/quicktime";
   if (name.endsWith(".mkv")) return "video/x-matroska";
+  if (name.endsWith(".pdf")) return "application/pdf";
   return "";
 }
 
@@ -297,7 +302,11 @@ function ConversationPage() {
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `pending-${Math.random().toString(36).slice(2)}`,
-      kind: effectiveFileType(file).startsWith("image/") ? "image" : "video",
+      kind: effectiveFileType(file).startsWith("image/")
+        ? "image"
+        : effectiveFileType(file) === "application/pdf"
+          ? "pdf"
+          : "video",
       status: "processing",
       previewUrl: URL.createObjectURL(file),
     }));
@@ -326,6 +335,41 @@ function ConversationPage() {
               );
             });
             URL.revokeObjectURL(queuedItem.previewUrl);
+          },
+          () => {
+            setPendingAttachments((current) =>
+              current.map((item) =>
+                item.id === queuedItem.id
+                  ? { ...item, status: "failed", error: "Failed to process" }
+                  : item,
+              ),
+            );
+          },
+        );
+      } else if (queuedItem.kind === "pdf") {
+        void preparePdf(file).then(
+          (meta) => {
+            const thumbnailUrl = URL.createObjectURL(meta.posterBlob);
+            setPendingAttachments((current) => {
+              if (!current.some((item) => item.id === queuedItem.id)) {
+                URL.revokeObjectURL(thumbnailUrl);
+                return current;
+              }
+              URL.revokeObjectURL(queuedItem.previewUrl);
+              return current.map((item) =>
+                item.id === queuedItem.id
+                  ? {
+                      ...item,
+                      status: "ready",
+                      pdfFile: file,
+                      originalName: file.name,
+                      pdfMeta: meta,
+                      thumbnailBlob: meta.posterBlob,
+                      thumbnailUrl,
+                    }
+                  : item,
+              );
+            });
           },
           () => {
             setPendingAttachments((current) =>
@@ -440,7 +484,8 @@ function ConversationPage() {
       (item) =>
         item.status === "ready" &&
         ((item.kind === "image" && item.prepared) ||
-          (item.kind === "video" && item.videoFile)),
+          (item.kind === "video" && item.videoFile) ||
+          (item.kind === "pdf" && item.pdfFile)),
     );
     if (!messageBody && !readyItems.length) return;
     const snapshot = readyItems.map((item) => ({
@@ -450,6 +495,8 @@ function ConversationPage() {
       originalName: item.originalName,
       videoMeta: item.videoMeta,
       thumbnailBlob: item.thumbnailBlob,
+      pdfFile: item.pdfFile,
+      pdfMeta: item.pdfMeta,
     }));
     const pendingUrls = pendingAttachments.flatMap((item) =>
       item.thumbnailUrl
@@ -467,11 +514,20 @@ function ConversationPage() {
       const optimisticVideos = snapshot.filter(
         (item) => item.kind === "video" && item.videoFile,
       );
+      const optimisticPdfs = snapshot.filter(
+        (item) => item.kind === "pdf" && item.pdfFile,
+      );
       const optimisticImageUrls = optimisticImages.map((p) =>
         URL.createObjectURL(p.blob),
       );
       const optimisticVideoUrls = optimisticVideos.map((item) => ({
         url: URL.createObjectURL(item.videoFile as File),
+        posterUrl: item.thumbnailBlob
+          ? URL.createObjectURL(item.thumbnailBlob)
+          : undefined,
+      }));
+      const optimisticPdfUrls = optimisticPdfs.map((item) => ({
+        url: URL.createObjectURL(item.pdfFile as File),
         posterUrl: item.thumbnailBlob
           ? URL.createObjectURL(item.thumbnailBlob)
           : undefined,
@@ -517,6 +573,25 @@ function ConversationPage() {
               },
               url: optimisticVideoUrls[index].url,
               posterUrl: optimisticVideoUrls[index].posterUrl,
+            })),
+            ...optimisticPdfs.map((item, index) => ({
+              id: -(
+                optimisticImages.length +
+                optimisticVideos.length +
+                index +
+                1
+              ),
+              messageId: 0,
+              originalName:
+                item.originalName ?? item.pdfFile?.name ?? "document",
+              mimeType: "application/pdf",
+              sizeBytes: item.pdfFile?.size ?? 0,
+              metadata: {
+                width: item.pdfMeta?.width,
+                height: item.pdfMeta?.height,
+              },
+              url: optimisticPdfUrls[index].url,
+              posterUrl: optimisticPdfUrls[index].posterUrl,
             })),
           ],
         },
@@ -631,6 +706,41 @@ function ConversationPage() {
                 width: meta?.width,
                 height: meta?.height,
                 duration: meta?.duration,
+                ...(posterKey ? { posterKey } : {}),
+              },
+            });
+          } else if (item.kind === "pdf" && item.pdfFile) {
+            const file = item.pdfFile;
+            const meta = item.pdfMeta;
+            let posterKey: string | undefined;
+            if (meta && item.thumbnailBlob) {
+              posterKey = await uploadBlob(
+                meta.posterFileName,
+                "image/webp",
+                item.thumbnailBlob.size,
+                item.thumbnailBlob,
+                (percent) =>
+                  updateProgress(baseProgress + (percent / 100) * weight * 0.1),
+              );
+            }
+            const pdfKey = await uploadBlob(
+              file.name,
+              "application/pdf",
+              file.size,
+              file,
+              (percent) =>
+                updateProgress(
+                  baseProgress + weight * 0.1 + (percent / 100) * weight * 0.9,
+                ),
+            );
+            attachments.push({
+              objectKey: pdfKey,
+              originalName: item.originalName ?? file.name,
+              mimeType: "application/pdf",
+              sizeBytes: file.size,
+              metadata: {
+                width: meta?.width,
+                height: meta?.height,
                 ...(posterKey ? { posterKey } : {}),
               },
             });
@@ -753,11 +863,9 @@ function ConversationPage() {
       {isDraggingFiles && (
         <div className="bg-background/80 pointer-events-none absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="border-primary bg-primary/10 rounded-lg border-2 border-dashed px-8 py-6 text-center">
-            <p className="text-lg font-medium">
-              Drop images or videos to attach
-            </p>
+            <p className="text-lg font-medium">Drop files to attach</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              They will appear above the composer
+              Images, videos, and PDFs are supported
             </p>
           </div>
         </div>
@@ -883,6 +991,22 @@ function ConversationPage() {
                         className="text-muted-foreground flex h-full w-full items-center justify-center overflow-hidden px-1 text-center text-[10px] break-all"
                       >
                         {item.videoFile?.name ?? "video"}
+                      </div>
+                    )
+                  ) : item.kind === "pdf" ? (
+                    item.thumbnailUrl ? (
+                      <img
+                        src={item.thumbnailUrl}
+                        alt=""
+                        aria-label="PDF attachment preview"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        aria-label="PDF attachment preview"
+                        className="text-muted-foreground flex h-full w-full items-center justify-center overflow-hidden px-1 text-center text-[10px] break-all"
+                      >
+                        {item.pdfFile?.name ?? "document"}
                       </div>
                     )
                   ) : (

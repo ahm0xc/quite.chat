@@ -129,7 +129,8 @@ export function MessageBubble({
                   !(
                     attachment.mimeType.startsWith("video/") &&
                     isPlayableVideo(attachment.mimeType)
-                  ),
+                  ) &&
+                  attachment.mimeType !== "application/pdf",
               )
               .map((attachment) => (
                 <a

@@ -115,7 +115,7 @@ export function Composer({
       >
         <input
           type="file"
-          accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv,.mov"
+          accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv,.mov,application/pdf"
           multiple
           className="hidden"
           ref={fileInputRef}
@@ -159,8 +159,8 @@ export function Composer({
             type="button"
             size="icon"
             variant="ghost"
-            aria-label="Attach images or videos"
-            title="Attach images or videos"
+            aria-label="Attach files"
+            title="Attach images, videos, or PDFs"
             disabled={disabled}
             onClick={() => fileInputRef.current?.click()}
           >

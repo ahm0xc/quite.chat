@@ -18,7 +18,9 @@ import { protectedProcedure } from "../init";
 
 const attachmentMimeType = z
   .string()
-  .regex(/^(image\/|video\/(mp4|webm|quicktime|x-matroska|mkv))/);
+  .regex(
+    /^(image\/|video\/(mp4|webm|quicktime|x-matroska|mkv)|application\/pdf)/,
+  );
 
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
@@ -57,6 +59,7 @@ export const conversationsRouter = {
         .refine(
           (value) =>
             value.mimeType.startsWith("video/") ||
+            value.mimeType === "application/pdf" ||
             value.sizeBytes <= IMAGE_MAX_BYTES,
           "Image too large",
         ),
@@ -399,6 +402,7 @@ export const conversationsRouter = {
                 items.every(
                   (item) =>
                     item.mimeType.startsWith("video/") ||
+                    item.mimeType === "application/pdf" ||
                     item.sizeBytes <= IMAGE_MAX_BYTES,
                 ),
               "Image too large",

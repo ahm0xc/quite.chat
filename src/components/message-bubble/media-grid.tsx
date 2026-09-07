@@ -1,5 +1,6 @@
 import {
   ArrowsOutIcon,
+  DownloadSimpleIcon,
   PauseIcon,
   PlayIcon,
   SpeakerHighIcon,
@@ -8,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
+import { Button } from "~/components/ui/button";
 import { useTRPC } from "~/integrations/trpc/react";
 import { localDb } from "~/lib/local-db";
 import { cn } from "~/lib/utils";
@@ -32,6 +34,10 @@ function isExpired(willExpireAt?: Date | string) {
 
 export function isPlayableVideo(mimeType: string) {
   return mimeType === "video/mp4" || mimeType === "video/webm";
+}
+
+export function isPdf(mimeType: string) {
+  return mimeType === "application/pdf";
 }
 
 export function MediaGridImage({
@@ -408,6 +414,183 @@ export function MediaGridVideoItem({
   );
 }
 
+export function MediaGridPdfItem({
+  attachment,
+  uploadProgress,
+}: {
+  attachment: ImageAttachment;
+  uploadProgress?: number;
+}) {
+  const trpc = useTRPC();
+  const isBlob = attachment.url?.startsWith("blob:");
+  const isTemp = attachment.id < 0;
+  const expired =
+    !isBlob &&
+    !isTemp &&
+    (!attachment.willExpireAt || isExpired(attachment.willExpireAt));
+
+  const refresh = useQuery({
+    ...trpc.conversations.refreshAttachmentUrl.queryOptions({
+      attachmentId: attachment.id,
+    }),
+    enabled: expired,
+    staleTime: Infinity,
+  });
+
+  const refreshedUrl = refresh.data?.url;
+  const refreshedPosterUrl = refresh.data?.posterUrl;
+  const refreshedWillExpireAt = (
+    refresh.data as { willExpireAt?: Date } | undefined
+  )?.willExpireAt;
+  const displayUrl = refreshedUrl ?? attachment.url;
+  const displayPosterUrl = refreshedPosterUrl ?? attachment.posterUrl;
+
+  React.useEffect(() => {
+    if (!refreshedUrl || !attachment.messageId) return;
+    const newUrl = refreshedUrl;
+    const newPosterUrl = refreshedPosterUrl;
+    const newWillExpireAt =
+      refreshedWillExpireAt ?? new Date(Date.now() + 15 * 60 * 1000);
+    void (async () => {
+      const msg = await localDb.messages.get(attachment.messageId as number);
+      if (!msg?.attachments) return;
+      await localDb.messages.update(attachment.messageId as number, {
+        attachments: msg.attachments.map((a) =>
+          a.id === attachment.id
+            ? {
+                ...a,
+                url: newUrl,
+                posterUrl: newPosterUrl,
+                willExpireAt: newWillExpireAt,
+              }
+            : a,
+        ),
+      });
+    })();
+  }, [
+    refreshedUrl,
+    refreshedPosterUrl,
+    refreshedWillExpireAt,
+    attachment.id,
+    attachment.messageId,
+  ]);
+
+  const [downloadProgress, setDownloadProgress] = React.useState<number | null>(
+    null,
+  );
+
+  const handleDownload = async () => {
+    if (!displayUrl) return;
+    setDownloadProgress(0);
+    try {
+      const response = await fetch(displayUrl);
+      if (!response.ok) throw new Error("Download failed");
+      const contentLength = response.headers.get("content-length");
+      const total = contentLength ? Number.parseInt(contentLength, 10) : 0;
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader");
+      const chunks: Array<BlobPart> = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          setDownloadProgress(Math.round((received / total) * 100));
+        }
+      }
+      const blob = new Blob(chunks);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = attachment.originalName ?? "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // silent
+    } finally {
+      setDownloadProgress(null);
+    }
+  };
+
+  if (!displayUrl) return null;
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-xl border">
+      <div className="h-24">
+        {displayPosterUrl ? (
+          <img
+            src={displayPosterUrl}
+            alt={attachment.originalName ?? "PDF attachment"}
+            className="h-full w-full object-cover object-top"
+          />
+        ) : (
+          <div className="bg-secondary flex h-full w-full items-center justify-center">
+            <span className="text-muted-foreground text-xs">PDF</span>
+          </div>
+        )}
+      </div>
+      <div className="bg-secondary flex items-center gap-2 border-t px-3 py-1.5">
+        <span className="text-secondary-foreground line-clamp-1 text-xs">
+          {attachment.originalName ?? "document.pdf"}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="ml-auto h-6 w-6 shrink-0"
+          aria-label="Download PDF"
+          disabled={downloadProgress !== null}
+          onClick={handleDownload}
+        >
+          {downloadProgress !== null ? (
+            <svg
+              className="size-4 -rotate-90"
+              viewBox="0 0 40 40"
+              fill="none"
+              aria-label={`Downloading ${downloadProgress}%`}
+              role="progressbar"
+              aria-valuenow={downloadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <circle
+                cx="20"
+                cy="20"
+                r="18"
+                stroke="currentColor"
+                strokeWidth="3"
+                opacity={0.25}
+              />
+              <circle
+                cx="20"
+                cy="20"
+                r="18"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 18}
+                strokeDashoffset={
+                  2 * Math.PI * 18 - (downloadProgress / 100) * 2 * Math.PI * 18
+                }
+                className="transition-[stroke-dashoffset] duration-150"
+              />
+            </svg>
+          ) : (
+            <DownloadSimpleIcon className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+      {uploadProgress !== undefined && uploadProgress < 100 && (
+        <CircularProgress progress={uploadProgress} />
+      )}
+    </div>
+  );
+}
+
 export function MediaGrid({
   attachments,
   uploadProgress,
@@ -424,13 +607,21 @@ export function MediaGrid({
       attachment.mimeType.startsWith("video/") &&
       isPlayableVideo(attachment.mimeType),
   );
+  const pdfs = attachments.filter((attachment) => isPdf(attachment.mimeType));
 
-  if (!images.length && !videos.length) return null;
+  if (!images.length && !videos.length && !pdfs.length) return null;
 
   return (
     <div className="flex max-w-full flex-col gap-2">
       {videos.map((attachment) => (
         <MediaGridVideoItem
+          key={attachment.id}
+          attachment={attachment}
+          uploadProgress={uploadProgress}
+        />
+      ))}
+      {pdfs.map((attachment) => (
+        <MediaGridPdfItem
           key={attachment.id}
           attachment={attachment}
           uploadProgress={uploadProgress}

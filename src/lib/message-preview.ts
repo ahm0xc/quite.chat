@@ -13,6 +13,11 @@ export function getMessagePreview(
   ) {
     return "Sent a video";
   }
+  if (
+    attachments.some((attachment) => attachment.mimeType === "application/pdf")
+  ) {
+    return "Sent a PDF";
+  }
   if (attachments.length) return "Sent an attachment";
   return "";
 }

@@ -73,6 +73,7 @@ function isBasicVideoFile(file: File) {
 }
 
 const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+const PDF_MAX_BYTES = 25 * 1024 * 1024;
 
 function effectiveFileType(file: File) {
   if (file.type) return file.type;
@@ -293,8 +294,11 @@ function ConversationPage() {
     const accepted = incoming.filter(
       (file) =>
         isSupportedFile(file) &&
-        (!effectiveFileType(file).startsWith("video/") ||
-          file.size <= VIDEO_MAX_BYTES),
+        (effectiveFileType(file).startsWith("video/")
+          ? file.size <= VIDEO_MAX_BYTES
+          : effectiveFileType(file) === "application/pdf"
+            ? file.size <= PDF_MAX_BYTES
+            : true),
     );
     if (!accepted.length) return;
     const queued: Array<PendingAttachment> = accepted.map((file) => ({

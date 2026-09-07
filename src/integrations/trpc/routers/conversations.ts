@@ -24,6 +24,7 @@ const attachmentMimeType = z
 
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+const PDF_MAX_BYTES = 25 * 1024 * 1024;
 
 async function withAttachmentUrls<
   T extends { objectKey: string; metadata: Record<string, unknown> | null },
@@ -58,10 +59,12 @@ export const conversationsRouter = {
         })
         .refine(
           (value) =>
-            value.mimeType.startsWith("video/") ||
-            value.mimeType === "application/pdf" ||
-            value.sizeBytes <= IMAGE_MAX_BYTES,
-          "Image too large",
+            value.mimeType.startsWith("video/")
+              ? value.sizeBytes <= VIDEO_MAX_BYTES
+              : value.mimeType === "application/pdf"
+                ? value.sizeBytes <= PDF_MAX_BYTES
+                : value.sizeBytes <= IMAGE_MAX_BYTES,
+          "File too large",
         ),
     )
     .mutation(async ({ ctx, input }) => {
@@ -399,13 +402,14 @@ export const conversationsRouter = {
             .default([])
             .refine(
               (items) =>
-                items.every(
-                  (item) =>
-                    item.mimeType.startsWith("video/") ||
-                    item.mimeType === "application/pdf" ||
-                    item.sizeBytes <= IMAGE_MAX_BYTES,
+                items.every((item) =>
+                  item.mimeType.startsWith("video/")
+                    ? item.sizeBytes <= VIDEO_MAX_BYTES
+                    : item.mimeType === "application/pdf"
+                      ? item.sizeBytes <= PDF_MAX_BYTES
+                      : item.sizeBytes <= IMAGE_MAX_BYTES,
                 ),
-              "Image too large",
+              "File too large",
             ),
         })
         .refine(

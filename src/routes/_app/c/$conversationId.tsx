@@ -15,10 +15,10 @@ import { Composer } from "~/components/composer";
 import { MessageBubble } from "~/components/message-bubble";
 import type { UIMessage } from "~/components/message-bubble";
 import { Button } from "~/components/ui/button";
+import { UserAvatar } from "~/components/user-avatar";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
-import { usePresenceOf } from "~/hooks/use-presence";
-import type { PresenceStatus } from "~/hooks/use-presence";
+import { PRESENCE_META, usePresenceOf } from "~/hooks/use-presence";
 import { useTRPC } from "~/integrations/trpc/react";
 import { prepareImage, prepareVideo } from "~/lib/image-processing";
 import {
@@ -1064,13 +1064,6 @@ function ConversationPage() {
   );
 }
 
-const PRESENCE_META: Record<PresenceStatus, { label: string; dot: string }> = {
-  online: { label: "Online", dot: "bg-green-500" },
-  away: { label: "Away", dot: "bg-amber-500" },
-  dnd: { label: "Do not disturb", dot: "bg-red-500" },
-  offline: { label: "Offline", dot: "bg-muted-foreground/50" },
-};
-
 function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
   const { isLoaded, isSignedIn } = useAuth();
@@ -1092,26 +1085,12 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
       >
         <CaretLeftIcon className="h-5 w-5" />
       </Link>
-      <div className="relative">
-        {user?.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt=""
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">
-            {user?.username?.[0]?.toUpperCase() ?? "?"}
-          </div>
-        )}
-        <span
-          aria-label={`Status: ${PRESENCE_META[presence].label}`}
-          className={cn(
-            "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-background",
-            PRESENCE_META[presence].dot,
-          )}
-        />
-      </div>
+      <UserAvatar
+        userId={user?.id}
+        username={user?.username}
+        showPresence
+        size="sm"
+      />
       <div className="min-w-0">
         <h1 className="truncate text-sm font-medium">
           {user?.displayName ?? user?.username ?? "Unknown"}

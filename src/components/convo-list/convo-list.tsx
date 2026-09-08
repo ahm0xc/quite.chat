@@ -1,4 +1,4 @@
-import { useAuth, useClerk, useUser } from "@clerk/tanstack-react-start";
+import { useAuth, useClerk } from "@clerk/tanstack-react-start";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
 import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
@@ -32,24 +32,14 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { PresenceIndicator, UserAvatar } from "~/components/user-avatar";
 import { useConversationsRealtime } from "~/hooks/use-conversation-realtime";
+import { PRESENCE_META } from "~/hooks/use-presence";
 import { useTRPC } from "~/integrations/trpc/react";
 import { clearLocalDb, localDb, markConversationRead } from "~/lib/local-db";
 import { syncConversations } from "~/lib/local-sync";
-import { cn } from "~/lib/utils";
 
-const STATUS_OPTIONS = [
-  { value: "online", label: "Online", dot: "bg-green-500" },
-  { value: "away", label: "Away", dot: "bg-amber-500" },
-  { value: "dnd", label: "Do not disturb", dot: "bg-red-500" },
-] as const;
-
-const STATUS_META: Record<string, { label: string; dot: string }> = {
-  online: { label: "Online", dot: "bg-green-500" },
-  away: { label: "Away", dot: "bg-amber-500" },
-  dnd: { label: "Do not disturb", dot: "bg-red-500" },
-  offline: { label: "Offline", dot: "bg-muted-foreground/50" },
-};
+const STATUS_OPTIONS = ["online", "away", "dnd"] as const;
 
 function formatTime(date: Date | string | null) {
   if (!date) return "";
@@ -76,7 +66,6 @@ function formatTime(date: Date | string | null) {
 export function ConvoList() {
   const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
 
-  const { user } = useUser();
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const trpc = useTRPC();
@@ -146,40 +135,36 @@ export function ConvoList() {
 
           <DropdownMenu>
             <DropdownMenuTrigger render={<button />}>
-              {user ? (
-                <img
-                  src={user.imageUrl}
-                  className="h-8 w-8 rounded-full border-2"
-                />
-              ) : (
-                <div className="bg-muted size-8 animate-pulse rounded-full border-2" />
-              )}
+              <UserAvatar
+                userId={me.data?.id}
+                showPresence
+                size="sm"
+                className="border-2"
+              />
             </DropdownMenuTrigger>
 
             <DropdownMenuContent>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <span
-                    className={cn(
-                      "size-2 rounded-full",
-                      STATUS_META[me.data?.presenceStatus ?? "offline"].dot,
-                    )}
+                  <PresenceIndicator
+                    status={me.data?.presenceStatus ?? "offline"}
+                    className="size-4"
                   />
-                  {STATUS_META[me.data?.presenceStatus ?? "offline"].label}
+                  {PRESENCE_META[me.data?.presenceStatus ?? "offline"].label}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {STATUS_OPTIONS.map((option) => (
                     <DropdownMenuItem
-                      key={option.value}
+                      key={option}
                       disabled={
-                        me.data?.presenceStatus === option.value ||
+                        me.data?.presenceStatus === option ||
                         setStatus.isPending
                       }
-                      onClick={() => setStatus.mutate({ status: option.value })}
+                      onClick={() => setStatus.mutate({ status: option })}
                     >
-                      <span className={cn("size-2 rounded-full", option.dot)} />
-                      {option.label}
-                      {me.data?.presenceStatus === option.value && (
+                      <PresenceIndicator status={option} className="size-4" />
+                      {PRESENCE_META[option].label}
+                      {me.data?.presenceStatus === option && (
                         <CheckIcon className="ml-auto" />
                       )}
                     </DropdownMenuItem>
@@ -268,17 +253,12 @@ export function ConvoList() {
                 activeProps={{ className: "bg-accent font-medium" }}
                 className="hover:bg-accent flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:[&+div]:opacity-0 [&.bg-accent+div]:opacity-0"
               >
-                {convo.otherUser?.avatarUrl ? (
-                  <img
-                    src={convo.otherUser.avatarUrl}
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium">
-                    {convo.otherUser?.username?.[0]?.toUpperCase() ?? "?"}
-                  </div>
-                )}
+                <UserAvatar
+                  userId={convo.otherUser?.id}
+                  username={convo.otherUser?.username}
+                  showPresence
+                  size="md"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="font-heading truncate text-sm font-medium">

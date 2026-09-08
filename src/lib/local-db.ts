@@ -29,6 +29,7 @@ export type LocalConversation = {
   id: number;
   type: "direct";
   otherUser: {
+    id?: number;
     username: string | null;
     displayName: string | null;
     avatarUrl: string | null;

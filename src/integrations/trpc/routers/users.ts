@@ -62,6 +62,27 @@ export const usersRouter = {
     return { status: "offline" as const };
   }),
 
+  getById: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const rows = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          presenceStatus: users.presenceStatus,
+        })
+        .from(users)
+        .where(eq(users.id, input.id))
+        .limit(1);
+
+      if (rows.length === 0 || !rows[0]) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+      return rows[0];
+    }),
+
   getByUsername: protectedProcedure
     .input(
       z.object({

@@ -7,6 +7,13 @@ import { pusherClient } from "~/lib/pusher-client";
 
 export type PresenceStatus = "online" | "away" | "dnd" | "offline";
 
+export const PRESENCE_META: Record<PresenceStatus, { label: string }> = {
+  online: { label: "Online" },
+  away: { label: "Away" },
+  dnd: { label: "Do not disturb" },
+  offline: { label: "Offline" },
+};
+
 const statuses = new Map<number, PresenceStatus>();
 const listeners = new Set<() => void>();
 

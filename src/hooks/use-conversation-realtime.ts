@@ -11,6 +11,8 @@ import {
   upsertMessages,
 } from "~/lib/local-db";
 import { getMessagePreview } from "~/lib/message-preview";
+import { playSound } from "~/lib/sound-engine";
+import { drop001Sound } from "~/sounds/drop-001";
 
 const pusher = new Pusher(env.VITE_PUSHER_KEY, {
   cluster: env.VITE_PUSHER_CLUSTER,
@@ -20,13 +22,22 @@ const pusher = new Pusher(env.VITE_PUSHER_KEY, {
   },
 });
 
-export function useConversationRealtime(conversationId: number) {
+export function useConversationRealtime(
+  conversationId: number,
+  currentUserId?: number,
+) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   React.useEffect(() => {
     const channel = pusher.subscribe(`private-conversation-${conversationId}`);
 
     channel.bind("message.created", (message: MessageEvent) => {
+      if (
+        message.senderId !== currentUserId &&
+        (document.hidden || !document.hasFocus())
+      ) {
+        void playSound(drop001Sound.dataUri, { volume: 0.8 }).catch(() => {});
+      }
       const stamped = stampWillExpireAt({
         ...message,
         conversationId,
@@ -69,7 +80,7 @@ export function useConversationRealtime(conversationId: number) {
       channel.unbind("message.deleted");
       pusher.unsubscribe(`private-conversation-${conversationId}`);
     };
-  }, [conversationId, queryClient, trpc]);
+  }, [conversationId, currentUserId, queryClient, trpc]);
 }
 
 export function useConversationsRealtime(
@@ -85,6 +96,12 @@ export function useConversationsRealtime(
         `private-conversation-${conversationId}`,
       );
       channel.bind("message.created", (message: MessageEvent) => {
+        if (
+          conversationId !== currentConversationId &&
+          message.senderId !== currentUserId
+        ) {
+          void playSound(drop001Sound.dataUri, { volume: 0.8 }).catch(() => {});
+        }
         const normalizedMessage = {
           ...message,
           conversationId,

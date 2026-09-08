@@ -174,7 +174,7 @@ function ConversationPage() {
       );
     }
   }, [messages.data, convoId]);
-  useConversationRealtime(convoId);
+  useConversationRealtime(convoId, me.data?.id);
 
   const send = useMutation(
     trpc.conversations.sendMessage.mutationOptions({

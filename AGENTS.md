@@ -1,6 +1,7 @@
 ## Database with Drizzle
 
 - When generating database migrations, use descriptive names: `vp run db:generate --name <descriptive_name>`. Never use auto-generated names.
+- Generate migrations after any change but do not migrate it without users concent
 
 ## Using Vite+
 

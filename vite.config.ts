@@ -4,6 +4,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
 const config = defineConfig({
@@ -18,6 +19,69 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
     babel({ presets: [reactCompilerPreset()] }),
+    VitePWA({
+      registerType: "autoUpdate",
+      outDir: ".output/public",
+      integration: {
+        closeBundleOrder: "pre",
+      },
+      // Manifest link + SW registration are wired manually in __root.tsx
+      // (plugin HTML injection doesn't apply to the SSR shell).
+      injectRegister: false,
+      includeAssets: [
+        "favicon.ico",
+        "icon-192.png",
+        "icon-512.png",
+        "apple-touch-icon.png",
+      ],
+      manifest: {
+        name: "Quite Chat",
+        short_name: "Quite",
+        description: "A quiet space to chat",
+        theme_color: "#F2F3F4",
+        background_color: "#F2F3F4",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
+        icons: [
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        cleanupOutdatedCaches: true,
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            handler: "NetworkOnly",
+          },
+          {
+            urlPattern: ({ request }) =>
+              request.destination === "style" ||
+              request.destination === "script" ||
+              request.destination === "worker" ||
+              request.destination === "image" ||
+              request.destination === "font",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-assets",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+              },
+            },
+          },
+        ],
+      },
+    }),
   ]),
   // Vite plus specific config
   staged: {

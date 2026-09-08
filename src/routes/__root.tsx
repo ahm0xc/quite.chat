@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import * as React from "react";
 import type { ReactNode } from "react";
 
 import type { TRPCRouter } from "~/integrations/trpc/router";
@@ -34,11 +35,47 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         title: "Chat",
       },
+      {
+        name: "description",
+        content: "A quiet space to chat",
+      },
+      {
+        name: "theme-color",
+        content: "#FFF",
+      },
+      {
+        name: "mobile-web-app-capable",
+        content: "yes",
+      },
+      {
+        name: "apple-mobile-web-app-capable",
+        content: "yes",
+      },
+      {
+        name: "apple-mobile-web-app-status-bar-style",
+        content: "black-translucent",
+      },
+      {
+        name: "apple-mobile-web-app-title",
+        content: "Quite",
+      },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png",
+      },
+      {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
       },
     ],
   }),
@@ -46,6 +83,14 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
+  React.useEffect(() => {
+    // vite-plugin-pwa can't inject registration into TanStack Start's SSR
+    // shell, so register manually (prod only — no SW in dev).
+    if (import.meta.env.PROD && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

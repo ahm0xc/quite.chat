@@ -102,6 +102,7 @@ export const conversationsRouter = {
         username: users.username,
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
+        presenceStatus: users.presenceStatus,
         lastReadMessageId: conversationMembers.lastReadMessageId,
       })
       .from(conversationMembers)
@@ -187,9 +188,11 @@ export const conversationsRouter = {
           type: "direct" as const,
           otherUser: otherMember
             ? {
+                id: otherMember.userId,
                 username: otherMember.username,
                 displayName: otherMember.displayName,
                 avatarUrl: otherMember.avatarUrl,
+                presenceStatus: otherMember.presenceStatus,
               }
             : null,
           lastMessage,
@@ -213,6 +216,7 @@ export const conversationsRouter = {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          presenceStatus: users.presenceStatus,
         })
         .from(conversationMembers)
         .innerJoin(users, eq(conversationMembers.userId, users.id))
@@ -227,9 +231,11 @@ export const conversationsRouter = {
       return {
         otherUser: otherMember
           ? {
+              id: otherMember.userId,
               username: otherMember.username,
               displayName: otherMember.displayName,
               avatarUrl: otherMember.avatarUrl,
+              presenceStatus: otherMember.presenceStatus,
             }
           : null,
       };

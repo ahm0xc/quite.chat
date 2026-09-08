@@ -20,16 +20,33 @@ export const Route = createFileRoute("/api/pusher/auth")({
         if (typeof channelName !== "string") {
           return new Response("Bad request", { status: 400 });
         }
+
+        if (typeof socketId !== "string") {
+          return new Response("Bad request", { status: 400 });
+        }
+
+        const localUser = await getLocalUser(session.userId);
+        if (!localUser) return new Response("Forbidden", { status: 403 });
+
+        if (channelName === "presence-global") {
+          return Response.json(
+            pusherServer.authorizeChannel(socketId, channelName, {
+              user_id: String(localUser.id),
+              user_info: {
+                userId: localUser.id,
+                status: localUser.presenceStatus,
+              },
+            }),
+          );
+        }
+
         const conversationId = channelName.match(
           /^private-conversation-(\d+)$/,
         )?.[1];
 
-        if (typeof socketId !== "string" || !conversationId) {
+        if (!conversationId) {
           return new Response("Bad request", { status: 400 });
         }
-
-        const localUserId = await getLocalUserId(session.userId);
-        if (!localUserId) return new Response("Forbidden", { status: 403 });
 
         const member = await db
           .select({ userId: conversationMembers.userId })
@@ -37,7 +54,7 @@ export const Route = createFileRoute("/api/pusher/auth")({
           .where(
             and(
               eq(conversationMembers.conversationId, Number(conversationId)),
-              eq(conversationMembers.userId, localUserId),
+              eq(conversationMembers.userId, localUser.id),
               isNull(conversationMembers.leftAt),
             ),
           )
@@ -53,12 +70,12 @@ export const Route = createFileRoute("/api/pusher/auth")({
   },
 });
 
-async function getLocalUserId(clerkUserId: string) {
+async function getLocalUser(clerkUserId: string) {
   const rows = await db
-    .select({ id: users.id })
+    .select({ id: users.id, presenceStatus: users.presenceStatus })
     .from(users)
     .where(eq(users.clerkUserId, clerkUserId))
     .limit(1);
-  if (rows.length === 0) return null;
-  return rows[0].id;
+  if (rows.length === 0 || !rows[0]) return null;
+  return rows[0];
 }

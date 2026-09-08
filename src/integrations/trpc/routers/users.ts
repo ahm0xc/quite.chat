@@ -5,8 +5,34 @@ import { z } from "zod";
 
 import { db } from "~/db";
 import { users } from "~/db/schema";
+import { pusherServer } from "~/lib/pusher-server";
 
 import { protectedProcedure } from "../init";
+
+export const settablePresenceStatus = z.enum(["online", "away", "dnd"]);
+export type SettablePresenceStatus = z.infer<typeof settablePresenceStatus>;
+
+export async function setUserPresence(
+  userId: number,
+  status: "online" | "away" | "dnd" | "offline",
+) {
+  await db
+    .update(users)
+    .set({
+      presenceStatus: status,
+      lastSeenAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+  try {
+    await pusherServer.trigger("presence-global", "presence.updated", {
+      userId,
+      status,
+    });
+  } catch (error) {
+    console.error("Failed to publish presence.updated event", error);
+  }
+}
 
 export const usersRouter = {
   me: protectedProcedure.query(async ({ ctx }) => {
@@ -16,11 +42,24 @@ export const usersRouter = {
         username: users.username,
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
+        presenceStatus: users.presenceStatus,
       })
       .from(users)
       .where(eq(users.id, ctx.userId))
       .limit(1)
       .then((rows) => rows[0]);
+  }),
+
+  setStatus: protectedProcedure
+    .input(z.object({ status: settablePresenceStatus }))
+    .mutation(async ({ ctx, input }) => {
+      await setUserPresence(ctx.userId, input.status);
+      return { status: input.status };
+    }),
+
+  goOffline: protectedProcedure.mutation(async ({ ctx }) => {
+    await setUserPresence(ctx.userId, "offline");
+    return { status: "offline" as const };
   }),
 
   getByUsername: protectedProcedure
@@ -45,6 +84,7 @@ export const usersRouter = {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          presenceStatus: users.presenceStatus,
         })
         .from(users)
         .where(sql`lower(${users.username}) = lower(${username})`)
@@ -65,6 +105,7 @@ export const usersRouter = {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          presenceStatus: users.presenceStatus,
         })
         .from(users)
         .where(inArray(users.username, input.usernames)),

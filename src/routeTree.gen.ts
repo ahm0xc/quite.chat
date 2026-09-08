@@ -19,6 +19,7 @@ import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
 import { Route as ApiPusherAuthRouteImport } from './routes/api/pusher/auth'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 import { Route as ApiWebhooksClerkRouteImport } from './routes/api/webhooks/clerk'
+import { Route as ApiWebhooksPusherRouteImport } from './routes/api/webhooks/pusher'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -69,6 +70,11 @@ const ApiWebhooksClerkRoute = ApiWebhooksClerkRouteImport.update({
   path: '/api/webhooks/clerk',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksPusherRoute = ApiWebhooksPusherRouteImport.update({
+  id: '/api/webhooks/pusher',
+  path: '/api/webhooks/pusher',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
+  '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
 }
 export interface FileRoutesByTo {
   '/start': typeof AppStartRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
+  '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/api/pusher/auth': typeof ApiPusherAuthRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
+  '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
+    | '/api/webhooks/pusher'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/start'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
+    | '/api/webhooks/pusher'
   id:
     | '__root__'
     | '/_app'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/api/pusher/auth'
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
+    | '/api/webhooks/pusher'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   ApiPusherAuthRoute: typeof ApiPusherAuthRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
   ApiWebhooksClerkRoute: typeof ApiWebhooksClerkRoute
+  ApiWebhooksPusherRoute: typeof ApiWebhooksPusherRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -223,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksClerkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/pusher': {
+      id: '/api/webhooks/pusher'
+      path: '/api/webhooks/pusher'
+      fullPath: '/api/webhooks/pusher'
+      preLoaderRoute: typeof ApiWebhooksPusherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -249,6 +269,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPusherAuthRoute: ApiPusherAuthRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
   ApiWebhooksClerkRoute: ApiWebhooksClerkRoute,
+  ApiWebhooksPusherRoute: ApiWebhooksPusherRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -19,6 +19,12 @@ export const conversationMemberRole = pgEnum("conversation_member_role", [
   "admin",
   "member",
 ]);
+export const presenceStatus = pgEnum("presence_status", [
+  "online",
+  "away",
+  "dnd",
+  "offline",
+]);
 
 export const users = pgTable(
   "users",
@@ -28,6 +34,10 @@ export const users = pgTable(
     username: text(),
     displayName: text("display_name"),
     avatarUrl: text("avatar_url"),
+    presenceStatus: presenceStatus("presence_status")
+      .notNull()
+      .default("offline"),
+    lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
 
     deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

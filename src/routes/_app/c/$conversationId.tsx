@@ -17,6 +17,8 @@ import type { UIMessage } from "~/components/message-bubble";
 import { Button } from "~/components/ui/button";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
+import { usePresenceOf } from "~/hooks/use-presence";
+import type { PresenceStatus } from "~/hooks/use-presence";
 import { useTRPC } from "~/integrations/trpc/react";
 import { prepareImage, prepareVideo } from "~/lib/image-processing";
 import {
@@ -174,7 +176,11 @@ function ConversationPage() {
       );
     }
   }, [messages.data, convoId]);
-  useConversationRealtime(convoId, me.data?.id);
+  useConversationRealtime(
+    convoId,
+    me.data?.id,
+    me.data?.presenceStatus === "dnd",
+  );
 
   const send = useMutation(
     trpc.conversations.sendMessage.mutationOptions({
@@ -1058,6 +1064,13 @@ function ConversationPage() {
   );
 }
 
+const PRESENCE_META: Record<PresenceStatus, { label: string; dot: string }> = {
+  online: { label: "Online", dot: "bg-green-500" },
+  away: { label: "Away", dot: "bg-amber-500" },
+  dnd: { label: "Do not disturb", dot: "bg-red-500" },
+  offline: { label: "Offline", dot: "bg-muted-foreground/50" },
+};
+
 function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
   const { isLoaded, isSignedIn } = useAuth();
@@ -1069,6 +1082,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
   });
 
   const user = details.data?.otherUser;
+  const presence = usePresenceOf(user?.id, user?.presenceStatus ?? "offline");
 
   return (
     <div className="flex h-14 items-center gap-3 border-b px-4">
@@ -1078,20 +1092,34 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
       >
         <CaretLeftIcon className="h-5 w-5" />
       </Link>
-      {user?.avatarUrl ? (
-        <img
-          src={user.avatarUrl}
-          alt=""
-          className="h-8 w-8 rounded-full object-cover"
+      <div className="relative">
+        {user?.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt=""
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">
+            {user?.username?.[0]?.toUpperCase() ?? "?"}
+          </div>
+        )}
+        <span
+          aria-label={`Status: ${PRESENCE_META[presence].label}`}
+          className={cn(
+            "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-background",
+            PRESENCE_META[presence].dot,
+          )}
         />
-      ) : (
-        <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">
-          {user?.username?.[0]?.toUpperCase() ?? "?"}
-        </div>
-      )}
-      <h1 className="text-sm font-medium">
-        {user?.displayName ?? user?.username ?? "Unknown"}
-      </h1>
+      </div>
+      <div className="min-w-0">
+        <h1 className="truncate text-sm font-medium">
+          {user?.displayName ?? user?.username ?? "Unknown"}
+        </h1>
+        <p className="text-muted-foreground text-xs">
+          {PRESENCE_META[presence].label}
+        </p>
+      </div>
       <div className="ml-auto flex items-center gap-1">
         <Button variant="ghost" size="icon" aria-label="Voice call">
           <PhoneIcon />

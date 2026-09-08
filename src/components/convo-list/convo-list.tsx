@@ -1,10 +1,11 @@
 import { useAuth, useClerk, useUser } from "@clerk/tanstack-react-start";
+import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { MonitorIcon } from "@phosphor-icons/react/dist/csr/Monitor";
 import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as React from "react";
@@ -35,6 +36,20 @@ import { useConversationsRealtime } from "~/hooks/use-conversation-realtime";
 import { useTRPC } from "~/integrations/trpc/react";
 import { clearLocalDb, localDb, markConversationRead } from "~/lib/local-db";
 import { syncConversations } from "~/lib/local-sync";
+import { cn } from "~/lib/utils";
+
+const STATUS_OPTIONS = [
+  { value: "online", label: "Online", dot: "bg-green-500" },
+  { value: "away", label: "Away", dot: "bg-amber-500" },
+  { value: "dnd", label: "Do not disturb", dot: "bg-red-500" },
+] as const;
+
+const STATUS_META: Record<string, { label: string; dot: string }> = {
+  online: { label: "Online", dot: "bg-green-500" },
+  away: { label: "Away", dot: "bg-amber-500" },
+  dnd: { label: "Do not disturb", dot: "bg-red-500" },
+  offline: { label: "Offline", dot: "bg-muted-foreground/50" },
+};
 
 function formatTime(date: Date | string | null) {
   if (!date) return "";
@@ -65,6 +80,7 @@ export function ConvoList() {
   const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { setTheme, theme } = useTheme();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -76,6 +92,14 @@ export function ConvoList() {
     ...trpc.users.me.queryOptions(),
     enabled: isLoaded && isSignedIn === true,
   });
+  const setStatus = useMutation(
+    trpc.users.setStatus.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(trpc.users.me.queryOptions());
+      },
+    }),
+  );
+  const goOffline = useMutation(trpc.users.goOffline.mutationOptions());
   const conversations = useQuery({
     ...trpc.conversations.list.queryOptions(),
     enabled: isLoaded && isSignedIn === true,
@@ -91,7 +115,12 @@ export function ConvoList() {
         .filter((id) => id !== currentConversationId),
     [localConversations, conversations.data, currentConversationId],
   );
-  useConversationsRealtime(conversationIds, currentConversationId, me.data?.id);
+  useConversationsRealtime(
+    conversationIds,
+    currentConversationId,
+    me.data?.id,
+    me.data?.presenceStatus === "dnd",
+  );
   React.useEffect(() => {
     if (currentConversationId !== null)
       void markConversationRead(currentConversationId);
@@ -128,6 +157,35 @@ export function ConvoList() {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <span
+                    className={cn(
+                      "size-2 rounded-full",
+                      STATUS_META[me.data?.presenceStatus ?? "offline"].dot,
+                    )}
+                  />
+                  {STATUS_META[me.data?.presenceStatus ?? "offline"].label}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      disabled={
+                        me.data?.presenceStatus === option.value ||
+                        setStatus.isPending
+                      }
+                      onClick={() => setStatus.mutate({ status: option.value })}
+                    >
+                      <span className={cn("size-2 rounded-full", option.dot)} />
+                      {option.label}
+                      {me.data?.presenceStatus === option.value && (
+                        <CheckIcon className="ml-auto" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   {theme === "light" && <SunIcon />}
@@ -176,6 +234,7 @@ export function ConvoList() {
             <AlertDialogAction
               variant="destructive"
               onClick={async () => {
+                await goOffline.mutateAsync().catch(() => undefined);
                 await clearLocalDb();
                 await signOut();
               }}

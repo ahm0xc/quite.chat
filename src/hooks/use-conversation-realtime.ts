@@ -1,8 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import Pusher from "pusher-js";
 import * as React from "react";
 
-import { env } from "~/env";
 import { useTRPC } from "~/integrations/trpc/react";
 import {
   markLocalMessageDeleted,
@@ -11,20 +9,14 @@ import {
   upsertMessages,
 } from "~/lib/local-db";
 import { getMessagePreview } from "~/lib/message-preview";
+import { pusherClient as pusher } from "~/lib/pusher-client";
 import { playSound } from "~/lib/sound-engine";
 import { drop001Sound } from "~/sounds/drop-001";
-
-const pusher = new Pusher(env.VITE_PUSHER_KEY, {
-  cluster: env.VITE_PUSHER_CLUSTER,
-  channelAuthorization: {
-    endpoint: "/api/pusher/auth",
-    transport: "ajax",
-  },
-});
 
 export function useConversationRealtime(
   conversationId: number,
   currentUserId?: number,
+  muteSounds = false,
 ) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
@@ -33,6 +25,7 @@ export function useConversationRealtime(
 
     channel.bind("message.created", (message: MessageEvent) => {
       if (
+        !muteSounds &&
         message.senderId !== currentUserId &&
         (document.hidden || !document.hasFocus())
       ) {
@@ -80,13 +73,14 @@ export function useConversationRealtime(
       channel.unbind("message.deleted");
       pusher.unsubscribe(`private-conversation-${conversationId}`);
     };
-  }, [conversationId, currentUserId, queryClient, trpc]);
+  }, [conversationId, currentUserId, muteSounds, queryClient, trpc]);
 }
 
 export function useConversationsRealtime(
   conversationIds: Array<number>,
   currentConversationId: number | null,
   currentUserId: number | undefined,
+  muteSounds = false,
 ) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
@@ -97,6 +91,7 @@ export function useConversationsRealtime(
       );
       channel.bind("message.created", (message: MessageEvent) => {
         if (
+          !muteSounds &&
           conversationId !== currentConversationId &&
           message.senderId !== currentUserId
         ) {
@@ -151,6 +146,7 @@ export function useConversationsRealtime(
     conversationIds,
     currentConversationId,
     currentUserId,
+    muteSounds,
     queryClient,
     trpc,
   ]);

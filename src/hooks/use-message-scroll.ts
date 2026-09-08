@@ -21,6 +21,7 @@ export function useMessageScroll(
     estimateSize: () => 72,
     getItemKey: (index) => index,
     overscan: 8,
+    useFlushSync: false,
   });
 
   if (prevKeyRef.current !== conversationKey) {

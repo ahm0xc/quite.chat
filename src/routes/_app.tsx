@@ -9,6 +9,7 @@ import {
   ResizablePanelGroup,
 } from "~/components/ui/resizable";
 import { useIsMobile } from "~/hooks/use-mobile";
+import { PresenceBoot } from "~/hooks/use-presence";
 
 const requireAuth = createServerFn().handler(async () => {
   const session = await auth({ acceptsToken: "session_token" });
@@ -28,17 +29,26 @@ export const Route = createFileRoute("/_app")({
 function Layout() {
   const isMobile = useIsMobile();
 
-  if (isMobile) return <Outlet />;
+  if (isMobile)
+    return (
+      <>
+        <PresenceBoot />
+        <Outlet />
+      </>
+    );
 
   return (
-    <ResizablePanelGroup orientation="horizontal">
-      <ResizablePanel defaultSize="25rem" minSize="18rem" maxSize="25rem">
-        <ConvoList />
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel>
-        <Outlet />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <>
+      <PresenceBoot />
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize="25rem" minSize="18rem" maxSize="25rem">
+          <ConvoList />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel>
+          <Outlet />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </>
   );
 }

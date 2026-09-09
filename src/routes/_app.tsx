@@ -2,8 +2,8 @@ import { auth } from "@clerk/tanstack-react-start/server";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
+import { ConvoInfoView } from "~/components/convo-info-view";
 import { ConvoList } from "~/components/convo-list";
-import { GroupInfoView } from "~/components/group-info-view";
 import {
   SecondaryPanel,
   SecondaryPanelProvider,
@@ -49,7 +49,7 @@ function Layout() {
             <ResizablePanel>
               <Outlet />
             </ResizablePanel>
-            <SecondaryPanel views={{ "group-info": GroupInfoView }} />
+            <SecondaryPanel views={{ "convo-info": ConvoInfoView }} />
           </ResizablePanelGroup>
         )}
       </SecondaryPanelProvider>

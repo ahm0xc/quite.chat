@@ -4,6 +4,7 @@ import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { PhoneIcon } from "@phosphor-icons/react/dist/csr/Phone";
 import { PushPinIcon } from "@phosphor-icons/react/dist/csr/PushPin";
+import { UserPlusIcon } from "@phosphor-icons/react/dist/csr/UserPlus";
 import { VideoCameraIcon } from "@phosphor-icons/react/dist/csr/VideoCamera";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -17,6 +18,14 @@ import { MessageBubble } from "~/components/message-bubble";
 import type { UIMessage } from "~/components/message-bubble";
 import { useSecondaryPanel } from "~/components/secondary-panel";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
 import { UserAvatar } from "~/components/user-avatar";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
@@ -1103,12 +1112,168 @@ function ConversationPage() {
   );
 }
 
+function AddMemberDialog({
+  conversationId,
+  open,
+  onOpenChange,
+}: {
+  conversationId: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+
+  const currentConvo = useLiveQuery(
+    () => localDb.conversations.get(conversationId),
+    [conversationId],
+  );
+
+  const currentMemberIds = React.useMemo(() => {
+    const ids = new Set((currentConvo?.members ?? []).map((m) => m.userId));
+    if (currentConvo?.otherUser?.id != null) {
+      ids.add(currentConvo.otherUser.id);
+    }
+    return ids;
+  }, [currentConvo]);
+
+  const filtered =
+    useLiveQuery(async () => {
+      const users = await localDb.users.toArray();
+      const list = users.filter((u) => !currentMemberIds.has(u.id));
+      const q = search.trim().toLowerCase();
+      if (!q) return list;
+      return list.filter(
+        (u) =>
+          u.username?.toLowerCase().includes(q) ||
+          u.displayName?.toLowerCase().includes(q),
+      );
+    }, [currentMemberIds, search]) ?? [];
+
+  const toggle = (userId: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const addMembers = useMutation(
+    trpc.conversations.addMembers.mutationOptions({
+      onSuccess: () => {
+        setSearch("");
+        setSelected(new Set());
+        onOpenChange(false);
+        void queryClient.invalidateQueries(
+          trpc.conversations.details.queryOptions({ conversationId }),
+        );
+        void queryClient.invalidateQueries(
+          trpc.conversations.list.queryOptions(),
+        );
+      },
+      onError: (e) => setError(e.message),
+    }),
+  );
+
+  const handleAdd = () => {
+    if (selected.size === 0) return;
+    setError(null);
+    addMembers.mutate({ conversationId, userIds: [...selected] });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add members</DialogTitle>
+          <DialogDescription>
+            Select from your contacts to add to this group.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search users..."
+          autoFocus
+        />
+        <div className="flex max-h-60 flex-col gap-1 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              {search ? "No matching users" : "No users to add"}
+            </p>
+          ) : (
+            <>
+              {filtered.map((user) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => toggle(user.id)}
+                  className="hover:bg-accent flex items-center gap-3 rounded-lg px-3 py-2 text-left"
+                >
+                  <div
+                    className={`flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                      selected.has(user.id)
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : "border-border"
+                    }`}
+                  >
+                    {selected.has(user.id) && (
+                      <svg viewBox="0 0 12 12" fill="none" className="size-3">
+                        <path
+                          d="M2 6l3 3 5-5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <UserAvatar
+                    userId={user.id}
+                    username={user.username}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {user.displayName ?? user.username}
+                    </p>
+                    {user.username && (
+                      <p className="text-muted-foreground truncate text-xs">
+                        @{user.username}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        <Button
+          onClick={handleAdd}
+          disabled={selected.size === 0 || addMembers.isPending}
+          className="w-full"
+        >
+          {addMembers.isPending
+            ? "Adding..."
+            : `Add ${selected.size > 0 ? `(${selected.size})` : ""}`}
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
   const { isLoaded, isSignedIn } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { setView } = useSecondaryPanel();
+  const { setView, currentView } = useSecondaryPanel();
   const details = useQuery({
     ...trpc.conversations.details.queryOptions({
       conversationId: Number(conversationId),
@@ -1129,6 +1294,12 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
     }
   }, [details.error, conversationId, navigate]);
 
+  React.useEffect(() => {
+    if (currentView === "convo-info") {
+      setView("convo-info", { conversationId: Number(conversationId) });
+    }
+  }, [conversationId, currentView, setView]);
+
   const isGroup = details.data?.type === "group";
   const user = details.data?.otherUser;
   const presence = usePresenceOf(user?.id, user?.presenceStatus ?? "offline");
@@ -1141,19 +1312,25 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
               username?: string | null;
               displayName?: string | null;
               avatarUrl: string | null;
+              role?: string;
             }>;
           }
         | undefined
     )?.members ?? [];
 
-  const handleOpenGroupInfo = () => {
+  const me = useQuery(trpc.users.me.queryOptions());
+  const myRole = members.find((m) => m.userId === me.data?.id)?.role;
+  const isAdmin = myRole === "owner" || myRole === "admin";
+  const [addMemberOpen, setAddMemberOpen] = React.useState(false);
+
+  const handleOpenConvoInfo = () => {
     if (isMobile) {
       void navigate({
         to: "/c/info/$conversationId",
         params: { conversationId },
       });
     } else {
-      setView("group-info", { conversationId: Number(conversationId) });
+      setView("convo-info", { conversationId: Number(conversationId) });
     }
   };
 
@@ -1169,7 +1346,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
           </Link>
           <button
             type="button"
-            onClick={handleOpenGroupInfo}
+            onClick={handleOpenConvoInfo}
             className="flex items-center gap-3 text-left"
           >
             <GroupAvatar
@@ -1187,11 +1364,21 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
             </div>
           </button>
           <div className="ml-auto flex items-center gap-1">
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Add members"
+                onClick={() => setAddMemberOpen(true)}
+              >
+                <UserPlusIcon />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
               aria-label="Group info"
-              onClick={handleOpenGroupInfo}
+              onClick={handleOpenConvoInfo}
             >
               <MagnifyingGlassIcon />
             </Button>
@@ -1200,6 +1387,11 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
             </Button>
           </div>
         </div>
+        <AddMemberDialog
+          conversationId={Number(conversationId)}
+          open={addMemberOpen}
+          onOpenChange={setAddMemberOpen}
+        />
       </>
     );
   }
@@ -1212,20 +1404,26 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
       >
         <CaretLeftIcon className="h-5 w-5" />
       </Link>
-      <UserAvatar
-        userId={user?.id}
-        username={user?.username}
-        showPresence
-        size="sm"
-      />
-      <div className="min-w-0">
-        <h1 className="truncate text-sm font-medium">
-          {user?.displayName ?? user?.username ?? "Unknown"}
-        </h1>
-        <p className="text-muted-foreground text-xs">
-          {PRESENCE_META[presence].label}
-        </p>
-      </div>
+      <button
+        type="button"
+        onClick={handleOpenConvoInfo}
+        className="flex items-center gap-3 text-left"
+      >
+        <UserAvatar
+          userId={user?.id}
+          username={user?.username}
+          showPresence
+          size="sm"
+        />
+        <div className="min-w-0">
+          <h1 className="truncate text-sm font-medium">
+            {user?.displayName ?? user?.username ?? "Unknown"}
+          </h1>
+          <p className="text-muted-foreground text-xs">
+            {PRESENCE_META[presence].label}
+          </p>
+        </div>
+      </button>
       <div className="ml-auto flex items-center gap-1">
         <Button variant="ghost" size="icon" aria-label="Voice call">
           <PhoneIcon />
@@ -1237,6 +1435,14 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
           <PushPinIcon />
         </Button>
         <Button variant="ghost" size="icon" aria-label="Search messages">
+          <MagnifyingGlassIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Chat info"
+          onClick={handleOpenConvoInfo}
+        >
           <MagnifyingGlassIcon />
         </Button>
       </div>

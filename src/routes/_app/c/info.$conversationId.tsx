@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { GroupInfoView } from "~/components/group-info-view";
+import { ConvoInfoView } from "~/components/convo-info-view";
 
 export const Route = createFileRoute("/_app/c/info/$conversationId")({
-  component: GroupInfoPage,
+  component: ConvoInfoPage,
 });
 
-function GroupInfoPage() {
+function ConvoInfoPage() {
   const { conversationId } = Route.useParams();
 
   return (
     <div className="h-dvh overflow-y-auto">
-      <GroupInfoView conversationId={Number(conversationId)} />
+      <ConvoInfoView conversationId={Number(conversationId)} />
     </div>
   );
 }

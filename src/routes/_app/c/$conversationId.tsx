@@ -13,13 +13,14 @@ import type { DragEvent } from "react";
 
 import { Composer } from "~/components/composer";
 import { GroupAvatar } from "~/components/group-avatar";
-import { GroupInfoDialog } from "~/components/group-info-dialog";
 import { MessageBubble } from "~/components/message-bubble";
 import type { UIMessage } from "~/components/message-bubble";
+import { useSecondaryPanel } from "~/components/secondary-panel";
 import { Button } from "~/components/ui/button";
 import { UserAvatar } from "~/components/user-avatar";
 import { useConversationRealtime } from "~/hooks/use-conversation-realtime";
 import { useMessageScroll } from "~/hooks/use-message-scroll";
+import { useIsMobile } from "~/hooks/use-mobile";
 import { PRESENCE_META, usePresenceOf } from "~/hooks/use-presence";
 import { useTRPC } from "~/integrations/trpc/react";
 import { prepareImage, prepareVideo } from "~/lib/image-processing";
@@ -1106,7 +1107,8 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
   const { isLoaded, isSignedIn } = useAuth();
   const navigate = useNavigate();
-  const [infoOpen, setInfoOpen] = React.useState(false);
+  const isMobile = useIsMobile();
+  const { setView } = useSecondaryPanel();
   const details = useQuery({
     ...trpc.conversations.details.queryOptions({
       conversationId: Number(conversationId),
@@ -1144,6 +1146,17 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
         | undefined
     )?.members ?? [];
 
+  const handleOpenGroupInfo = () => {
+    if (isMobile) {
+      void navigate({
+        to: "/c/info/$conversationId",
+        params: { conversationId },
+      });
+    } else {
+      setView("group-info", { conversationId: Number(conversationId) });
+    }
+  };
+
   if (isGroup) {
     return (
       <>
@@ -1156,7 +1169,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
           </Link>
           <button
             type="button"
-            onClick={() => setInfoOpen(true)}
+            onClick={handleOpenGroupInfo}
             className="flex items-center gap-3 text-left"
           >
             <GroupAvatar
@@ -1178,7 +1191,7 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
               variant="ghost"
               size="icon"
               aria-label="Group info"
-              onClick={() => setInfoOpen(true)}
+              onClick={handleOpenGroupInfo}
             >
               <MagnifyingGlassIcon />
             </Button>
@@ -1187,11 +1200,6 @@ function ConvoHeader({ conversationId }: { conversationId: string }) {
             </Button>
           </div>
         </div>
-        <GroupInfoDialog
-          conversationId={Number(conversationId)}
-          open={infoOpen}
-          onOpenChange={setInfoOpen}
-        />
       </>
     );
   }

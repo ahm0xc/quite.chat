@@ -21,6 +21,7 @@ import { Route as ApiPusherAuthRouteImport } from './routes/api/pusher/auth'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc/$'
 import { Route as ApiWebhooksClerkRouteImport } from './routes/api/webhooks/clerk'
 import { Route as ApiWebhooksPusherRouteImport } from './routes/api/webhooks/pusher'
+import { Route as AppCInfoConversationIdRouteImport } from './routes/_app/c/info.$conversationId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -81,6 +82,11 @@ const ApiWebhooksPusherRoute = ApiWebhooksPusherRouteImport.update({
   path: '/api/webhooks/pusher',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppCInfoConversationIdRoute = AppCInfoConversationIdRouteImport.update({
+  id: '/c/info/$conversationId',
+  path: '/c/info/$conversationId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
   '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
+  '/c/info/$conversationId': typeof AppCInfoConversationIdRoute
 }
 export interface FileRoutesByTo {
   '/start': typeof AppStartRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
   '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
+  '/c/info/$conversationId': typeof AppCInfoConversationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/clerk': typeof ApiWebhooksClerkRoute
   '/api/webhooks/pusher': typeof ApiWebhooksPusherRoute
+  '/_app/c/info/$conversationId': typeof AppCInfoConversationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
     | '/api/webhooks/pusher'
+    | '/c/info/$conversationId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/start'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
     | '/api/webhooks/pusher'
+    | '/c/info/$conversationId'
   id:
     | '__root__'
     | '/_app'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/api/trpc/$'
     | '/api/webhooks/clerk'
     | '/api/webhooks/pusher'
+    | '/_app/c/info/$conversationId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksPusherRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/c/info/$conversationId': {
+      id: '/_app/c/info/$conversationId'
+      path: '/c/info/$conversationId'
+      fullPath: '/c/info/$conversationId'
+      preLoaderRoute: typeof AppCInfoConversationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -271,6 +290,7 @@ interface AppRouteChildren {
   AppCConversationIdRoute: typeof AppCConversationIdRoute
   AppGroupsNewRoute: typeof AppGroupsNewRoute
   AppPUsernameRoute: typeof AppPUsernameRoute
+  AppCInfoConversationIdRoute: typeof AppCInfoConversationIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -279,6 +299,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCConversationIdRoute: AppCConversationIdRoute,
   AppGroupsNewRoute: AppGroupsNewRoute,
   AppPUsernameRoute: AppPUsernameRoute,
+  AppCInfoConversationIdRoute: AppCInfoConversationIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

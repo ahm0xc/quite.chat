@@ -3,6 +3,11 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
 import { ConvoList } from "~/components/convo-list";
+import { GroupInfoView } from "~/components/group-info-view";
+import {
+  SecondaryPanel,
+  SecondaryPanelProvider,
+} from "~/components/secondary-panel";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -29,26 +34,25 @@ export const Route = createFileRoute("/_app")({
 function Layout() {
   const isMobile = useIsMobile();
 
-  if (isMobile)
-    return (
-      <>
-        <PresenceBoot />
-        <Outlet />
-      </>
-    );
-
   return (
     <>
       <PresenceBoot />
-      <ResizablePanelGroup orientation="horizontal">
-        <ResizablePanel defaultSize="25rem" minSize="18rem" maxSize="25rem">
-          <ConvoList />
-        </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel>
+      <SecondaryPanelProvider>
+        {isMobile ? (
           <Outlet />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        ) : (
+          <ResizablePanelGroup orientation="horizontal">
+            <ResizablePanel defaultSize="25rem" minSize="18rem" maxSize="25rem">
+              <ConvoList />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel>
+              <Outlet />
+            </ResizablePanel>
+            <SecondaryPanel views={{ "group-info": GroupInfoView }} />
+          </ResizablePanelGroup>
+        )}
+      </SecondaryPanelProvider>
     </>
   );
 }

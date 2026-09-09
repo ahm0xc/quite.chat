@@ -6,12 +6,14 @@ import { PhoneIcon } from "@phosphor-icons/react/dist/csr/Phone";
 import { PushPinIcon } from "@phosphor-icons/react/dist/csr/PushPin";
 import { VideoCameraIcon } from "@phosphor-icons/react/dist/csr/VideoCamera";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as React from "react";
 import type { DragEvent } from "react";
 
 import { Composer } from "~/components/composer";
+import { GroupAvatar } from "~/components/group-avatar";
+import { GroupInfoDialog } from "~/components/group-info-dialog";
 import { MessageBubble } from "~/components/message-bubble";
 import type { UIMessage } from "~/components/message-bubble";
 import { Button } from "~/components/ui/button";
@@ -30,6 +32,7 @@ import {
 import type { LocalMessage } from "~/lib/local-db";
 import { syncMessages } from "~/lib/local-sync";
 import { preparePdf } from "~/lib/pdf-processing";
+import { pusherClient } from "~/lib/pusher-client";
 import { cn } from "~/lib/utils";
 import { isTranscodeSupported, transcodeToMp4 } from "~/lib/video-transcode";
 
@@ -104,6 +107,7 @@ function ConversationPage() {
   const { conversationId } = Route.useParams();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { isLoaded, isSignedIn } = useAuth();
 
   const me = useQuery({
@@ -124,6 +128,35 @@ function ConversationPage() {
     ...trpc.conversations.messages.queryOptions({ conversationId: convoId }),
     enabled: isLoaded && isSignedIn === true,
   });
+  const handleRemovedFromGroup = React.useCallback(() => {
+    void navigate({ to: "/" });
+  }, [navigate]);
+  React.useEffect(() => {
+    if (
+      messages.error &&
+      String(messages.error.message).includes("Not a member")
+    ) {
+      void localDb.conversations.delete(convoId);
+      void localDb.messages.where("conversationId").equals(convoId).delete();
+      void navigate({ to: "/" });
+    }
+  }, [messages.error, convoId, navigate]);
+  React.useEffect(() => {
+    const channel = pusherClient.subscribe("presence-global");
+    const handler = (data: { conversationId?: number }) => {
+      if (data.conversationId !== convoId) return;
+      void queryClient.invalidateQueries(
+        trpc.conversations.details.queryOptions({ conversationId: convoId }),
+      );
+      void queryClient.invalidateQueries(
+        trpc.conversations.messages.queryOptions({ conversationId: convoId }),
+      );
+    };
+    channel.bind("conversations.refresh", handler);
+    return () => {
+      channel.unbind("conversations.refresh", handler);
+    };
+  }, [convoId, queryClient, trpc]);
   const { mutate: markRead } = useMutation(
     trpc.conversations.markRead.mutationOptions(),
   );
@@ -167,7 +200,9 @@ function ConversationPage() {
         data.map((message) => ({
           ...message,
           conversationId: convoId,
-          attachments: message.attachments?.map((a) =>
+          attachments: (
+            message.attachments as Array<{ url?: string; willExpireAt?: Date }>
+          ).map((a) =>
             a.url && !(a as { willExpireAt?: Date }).willExpireAt
               ? { ...a, willExpireAt: new Date(Date.now() + 15 * 60 * 1000) }
               : a,
@@ -180,6 +215,7 @@ function ConversationPage() {
     convoId,
     me.data?.id,
     me.data?.presenceStatus === "dnd",
+    handleRemovedFromGroup,
   );
 
   const send = useMutation(
@@ -549,6 +585,8 @@ function ConversationPage() {
           conversationId: convoId,
           body: messageBody,
           senderId: me.data?.id ?? 0,
+          kind: "user" as const,
+          metadata: null,
           createdAt: new Date(),
           username: me.data?.username ?? null,
           status: "sending",
@@ -604,7 +642,7 @@ function ConversationPage() {
               posterUrl: optimisticPdfUrls[index].posterUrl,
             })),
           ],
-        },
+        } as unknown as UIMessage,
       ]);
       const uploadBlob = (
         fileName: string,
@@ -1067,15 +1105,96 @@ function ConversationPage() {
 function ConvoHeader({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
   const { isLoaded, isSignedIn } = useAuth();
+  const navigate = useNavigate();
+  const [infoOpen, setInfoOpen] = React.useState(false);
   const details = useQuery({
     ...trpc.conversations.details.queryOptions({
       conversationId: Number(conversationId),
     }),
     enabled: isLoaded && isSignedIn === true,
   });
+  React.useEffect(() => {
+    if (
+      details.error &&
+      String(details.error.message).includes("Not a member")
+    ) {
+      void localDb.conversations.delete(Number(conversationId));
+      void localDb.messages
+        .where("conversationId")
+        .equals(Number(conversationId))
+        .delete();
+      void navigate({ to: "/" });
+    }
+  }, [details.error, conversationId, navigate]);
 
+  const isGroup = details.data?.type === "group";
   const user = details.data?.otherUser;
   const presence = usePresenceOf(user?.id, user?.presenceStatus ?? "offline");
+  const members =
+    (
+      details.data as
+        | {
+            members?: Array<{
+              userId?: number;
+              username?: string | null;
+              displayName?: string | null;
+              avatarUrl: string | null;
+            }>;
+          }
+        | undefined
+    )?.members ?? [];
+
+  if (isGroup) {
+    return (
+      <>
+        <div className="flex h-14 items-center gap-3 border-b px-4">
+          <Link
+            to="/"
+            className="text-muted-foreground hover:text-foreground md:hidden"
+          >
+            <CaretLeftIcon className="h-5 w-5" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setInfoOpen(true)}
+            className="flex items-center gap-3 text-left"
+          >
+            <GroupAvatar
+              title={details.data?.title}
+              members={members}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-medium">
+                {details.data?.title ?? "Group"}
+              </h1>
+              <p className="text-muted-foreground text-xs">
+                {members.length} members
+              </p>
+            </div>
+          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Group info"
+              onClick={() => setInfoOpen(true)}
+            >
+              <MagnifyingGlassIcon />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Pinned messages">
+              <PushPinIcon />
+            </Button>
+          </div>
+        </div>
+        <GroupInfoDialog
+          conversationId={Number(conversationId)}
+          open={infoOpen}
+          onOpenChange={setInfoOpen}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-14 items-center gap-3 border-b px-4">

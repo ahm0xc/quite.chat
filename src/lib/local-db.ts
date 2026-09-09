@@ -18,7 +18,9 @@ export type LocalMessage = {
   id: number;
   conversationId: number;
   body: string;
-  senderId: number;
+  senderId: number | null;
+  kind?: "user" | "system";
+  metadata?: Record<string, unknown> | null;
   createdAt: Date;
   username: string | null;
   deletedAt?: Date | null;
@@ -27,7 +29,17 @@ export type LocalMessage = {
 
 export type LocalConversation = {
   id: number;
-  type: "direct";
+  type: "direct" | "group";
+  title?: string | null;
+  members?: Array<{
+    userId: number;
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+    presenceStatus?: string;
+    role?: string;
+  }>;
+  memberCount?: number;
   otherUser: {
     id?: number;
     username: string | null;
@@ -38,7 +50,7 @@ export type LocalConversation = {
     id: number;
     body: string;
     createdAt: Date;
-    senderId: number;
+    senderId: number | null;
   } | null;
   unreadCount?: number;
 };
@@ -58,6 +70,11 @@ class LocalDatabase extends Dexie {
   constructor() {
     super("chat-local-cache");
     this.version(1).stores({
+      messages: "id, conversationId, createdAt",
+      conversations: "id",
+      users: "id",
+    });
+    this.version(2).stores({
       messages: "id, conversationId, createdAt",
       conversations: "id",
       users: "id",

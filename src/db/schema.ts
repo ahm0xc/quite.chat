@@ -25,6 +25,7 @@ export const presenceStatus = pgEnum("presence_status", [
   "dnd",
   "offline",
 ]);
+export const messageKind = pgEnum("message_kind", ["user", "system"]);
 
 export const users = pgTable(
   "users",
@@ -93,11 +94,11 @@ export const messages = pgTable(
     conversationId: integer("conversation_id")
       .notNull()
       .references(() => conversations.id, { onDelete: "cascade" }),
-    senderId: integer("sender_id")
-      .notNull()
-      .references(() => users.id),
+    senderId: integer("sender_id").references(() => users.id),
     body: text().notNull().default(""),
     replyToMessageId: integer("reply_to_message_id"),
+    kind: messageKind().notNull().default("user"),
+    metadata: jsonb().$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     deletedAt: timestamp("deleted_at"),

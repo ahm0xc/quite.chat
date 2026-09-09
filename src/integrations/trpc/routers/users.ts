@@ -131,4 +131,24 @@ export const usersRouter = {
         .from(users)
         .where(inArray(users.username, input.usernames)),
     ),
+
+  search: protectedProcedure
+    .input(z.object({ q: z.string().trim().min(1).max(30) }))
+    .query(async ({ ctx, input }) => {
+      const escaped = input.q.trim().replace(/[\\%_]/g, (ch) => `\\${ch}`);
+      const term = `%${escaped}%`;
+      return db
+        .select({
+          id: users.id,
+          username: users.username,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          presenceStatus: users.presenceStatus,
+        })
+        .from(users)
+        .where(
+          sql`(${users.username} ILIKE ${term} ESCAPE '\' OR ${users.displayName} ILIKE ${term} ESCAPE '\') AND ${users.id} != ${ctx.userId} AND ${users.deletedAt} IS NULL`,
+        )
+        .limit(10);
+    }),
 } satisfies TRPCRouterRecord;

@@ -6,10 +6,11 @@ import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as React from "react";
 
+import { GroupAvatar } from "~/components/group-avatar";
 import { useTheme } from "~/components/theme-provider";
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ import { PRESENCE_META } from "~/hooks/use-presence";
 import { useTRPC } from "~/integrations/trpc/react";
 import { clearLocalDb, localDb, markConversationRead } from "~/lib/local-db";
 import { syncConversations } from "~/lib/local-sync";
+import { pusherClient } from "~/lib/pusher-client";
 
 const STATUS_OPTIONS = ["online", "away", "dnd"] as const;
 
@@ -71,6 +73,7 @@ export function ConvoList() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { setTheme, theme } = useTheme();
+  const navigate = useNavigate();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -111,6 +114,18 @@ export function ConvoList() {
     me.data?.presenceStatus === "dnd",
   );
   React.useEffect(() => {
+    const channel = pusherClient.subscribe("presence-global");
+    const handler = () => {
+      void queryClient.invalidateQueries(
+        trpc.conversations.list.queryOptions(),
+      );
+    };
+    channel.bind("conversations.refresh", handler);
+    return () => {
+      channel.unbind("conversations.refresh", handler);
+    };
+  }, [queryClient, trpc]);
+  React.useEffect(() => {
     if (currentConversationId !== null)
       void markConversationRead(currentConversationId);
   }, [currentConversationId]);
@@ -123,15 +138,23 @@ export function ConvoList() {
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Chat</h1>
         <div className="flex items-center gap-2">
-          <Link to="/start">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Start conversation"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="icon" aria-label="New" />}
             >
               <PlusIcon />
-            </Button>
-          </Link>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => void navigate({ to: "/start" })}>
+                New direct
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => void navigate({ to: "/groups/new" })}
+              >
+                New group
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger render={<button />}>
@@ -245,55 +268,86 @@ export function ConvoList() {
                 ? new Date(a.lastMessage.createdAt).getTime()
                 : 0),
           )
-          .map((convo) => (
-            <React.Fragment key={convo.id}>
-              <Link
-                to="/c/$conversationId"
-                params={{ conversationId: String(convo.id) }}
-                activeProps={{ className: "bg-accent font-medium" }}
-                className="hover:bg-accent flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:[&+div]:opacity-0 [&.bg-accent+div]:opacity-0"
-              >
-                <UserAvatar
-                  userId={convo.otherUser?.id}
-                  username={convo.otherUser?.username}
-                  showPresence
-                  size="md"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-heading truncate text-sm font-medium">
-                      {convo.otherUser?.displayName ??
-                        convo.otherUser?.username ??
-                        "Unknown"}
-                    </span>
-                    {convo.lastMessage && (
-                      <span className="text-muted-foreground ml-2 shrink-0 text-xs">
-                        {formatTime(convo.lastMessage.createdAt)}
+          .map((convo) => {
+            const isGroup = (convo as { type?: string }).type === "group";
+            const groupConvo = convo as {
+              type: "group";
+              title: string;
+              members?: Array<{
+                userId?: number;
+                username?: string | null;
+                displayName?: string | null;
+                avatarUrl: string | null;
+              }>;
+              memberCount?: number;
+            };
+            const directConvo = convo as {
+              otherUser?: {
+                id?: number;
+                username: string | null;
+                displayName: string | null;
+              } | null;
+            };
+            return (
+              <React.Fragment key={convo.id}>
+                <Link
+                  to="/c/$conversationId"
+                  params={{ conversationId: String(convo.id) }}
+                  activeProps={{ className: "bg-accent font-medium" }}
+                  className="hover:bg-accent flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:[&+div]:opacity-0 [&.bg-accent+div]:opacity-0"
+                >
+                  {isGroup ? (
+                    <GroupAvatar
+                      title={groupConvo.title}
+                      members={groupConvo.members}
+                      size="md"
+                    />
+                  ) : (
+                    <UserAvatar
+                      userId={directConvo.otherUser?.id}
+                      username={directConvo.otherUser?.username}
+                      showPresence
+                      size="md"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-heading truncate text-sm font-medium">
+                        {isGroup
+                          ? groupConvo.title
+                          : (directConvo.otherUser?.displayName ??
+                            directConvo.otherUser?.username ??
+                            "Unknown")}
                       </span>
+                      {convo.lastMessage && (
+                        <span className="text-muted-foreground ml-2 shrink-0 text-xs">
+                          {formatTime(convo.lastMessage.createdAt)}
+                        </span>
+                      )}
+                    </div>
+                    {convo.lastMessage && (
+                      <p className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
+                        <span className="min-w-0 truncate">
+                          {convo.lastMessage.body}
+                        </span>
+                        {"unreadCount" in convo &&
+                          (convo.unreadCount ?? 0) > 0 && (
+                            <span
+                              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white"
+                              aria-label={`${convo.unreadCount} unread messages`}
+                            >
+                              {convo.unreadCount}
+                            </span>
+                          )}
+                      </p>
                     )}
                   </div>
-                  {convo.lastMessage && (
-                    <p className="text-muted-foreground flex items-center justify-between gap-2 text-sm">
-                      <span className="min-w-0 truncate">
-                        {convo.lastMessage.body}
-                      </span>
-                      {"unreadCount" in convo &&
-                        (convo.unreadCount ?? 0) > 0 && (
-                          <span
-                            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white"
-                            aria-label={`${convo.unreadCount} unread messages`}
-                          >
-                            {convo.unreadCount}
-                          </span>
-                        )}
-                    </p>
-                  )}
-                </div>
-              </Link>
+                </Link>
 
-              <div className="bg-border mx-4 h-px transition-opacity has-[+a.bg-accent]:opacity-0 has-[+a:hover]:opacity-0" />
-            </React.Fragment>
-          ))}
+                <div className="bg-border mx-4 h-px transition-opacity has-[+a.bg-accent]:opacity-0 has-[+a:hover]:opacity-0" />
+              </React.Fragment>
+            );
+          })}
         {(localConversations?.length
           ? localConversations
           : (conversations.data ?? [])

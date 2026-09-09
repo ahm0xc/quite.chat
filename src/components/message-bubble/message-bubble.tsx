@@ -5,6 +5,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 
+import { SystemPill } from "~/components/system-pill";
 import { Bubble, BubbleContent } from "~/components/ui/bubble";
 import {
   ContextMenu,
@@ -15,6 +16,7 @@ import {
 } from "~/components/ui/context-menu";
 import type { RouterOutputs } from "~/integrations/trpc/router";
 import type { LocalMessage } from "~/lib/local-db";
+import type { SystemMessageData } from "~/lib/system-messages";
 import { cn } from "~/lib/utils";
 
 import { MediaGrid, isPlayableVideo } from "./media-grid";
@@ -64,6 +66,16 @@ export function MessageBubble({
   onDelete?: (messageId: number) => void;
   conversationId?: number;
 }) {
+  const isSystem = (message as { kind?: string }).kind === "system";
+  if (isSystem) {
+    const data = (message as { metadata?: SystemMessageData }).metadata;
+    if (data) return <SystemPill data={data} />;
+    return (
+      <div className="bg-muted text-muted-foreground mx-auto my-2 max-w-[80%] rounded-full px-4 py-1.5 text-center text-xs">
+        {message.body || "System message"}
+      </div>
+    );
+  }
   const isDeleted = Boolean(
     (message as { deletedAt?: Date | string | null }).deletedAt,
   );

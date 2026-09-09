@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppStartRouteImport } from './routes/_app/start'
 import { Route as AppCConversationIdRouteImport } from './routes/_app/c/$conversationId'
+import { Route as AppGroupsNewRouteImport } from './routes/_app/groups/new'
 import { Route as AppPUsernameRouteImport } from './routes/_app/p/$username'
 import { Route as AuthSignInSplatRouteImport } from './routes/_auth/sign-in.$'
 import { Route as AuthSignUpSplatRouteImport } from './routes/_auth/sign-up.$'
@@ -38,6 +39,11 @@ const AppStartRoute = AppStartRouteImport.update({
 const AppCConversationIdRoute = AppCConversationIdRouteImport.update({
   id: '/c/$conversationId',
   path: '/c/$conversationId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGroupsNewRoute = AppGroupsNewRouteImport.update({
+  id: '/groups/new',
+  path: '/groups/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPUsernameRoute = AppPUsernameRouteImport.update({
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/start': typeof AppStartRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
+  '/groups/new': typeof AppGroupsNewRoute
   '/p/$username': typeof AppPUsernameRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/start': typeof AppStartRoute
   '/': typeof AppIndexRoute
   '/c/$conversationId': typeof AppCConversationIdRoute
+  '/groups/new': typeof AppGroupsNewRoute
   '/p/$username': typeof AppPUsernameRoute
   '/sign-in/$': typeof AuthSignInSplatRoute
   '/sign-up/$': typeof AuthSignUpSplatRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/_app/start': typeof AppStartRoute
   '/_app/': typeof AppIndexRoute
   '/_app/c/$conversationId': typeof AppCConversationIdRoute
+  '/_app/groups/new': typeof AppGroupsNewRoute
   '/_app/p/$username': typeof AppPUsernameRoute
   '/_auth/sign-in/$': typeof AuthSignInSplatRoute
   '/_auth/sign-up/$': typeof AuthSignUpSplatRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/'
     | '/start'
     | '/c/$conversationId'
+    | '/groups/new'
     | '/p/$username'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/'
     | '/c/$conversationId'
+    | '/groups/new'
     | '/p/$username'
     | '/sign-in/$'
     | '/sign-up/$'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/_app/start'
     | '/_app/'
     | '/_app/c/$conversationId'
+    | '/_app/groups/new'
     | '/_app/p/$username'
     | '/_auth/sign-in/$'
     | '/_auth/sign-up/$'
@@ -192,6 +204,13 @@ declare module '@tanstack/react-router' {
       path: '/c/$conversationId'
       fullPath: '/c/$conversationId'
       preLoaderRoute: typeof AppCConversationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/groups/new': {
+      id: '/_app/groups/new'
+      path: '/groups/new'
+      fullPath: '/groups/new'
+      preLoaderRoute: typeof AppGroupsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/p/$username': {
@@ -250,6 +269,7 @@ interface AppRouteChildren {
   AppStartRoute: typeof AppStartRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCConversationIdRoute: typeof AppCConversationIdRoute
+  AppGroupsNewRoute: typeof AppGroupsNewRoute
   AppPUsernameRoute: typeof AppPUsernameRoute
 }
 
@@ -257,6 +277,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStartRoute: AppStartRoute,
   AppIndexRoute: AppIndexRoute,
   AppCConversationIdRoute: AppCConversationIdRoute,
+  AppGroupsNewRoute: AppGroupsNewRoute,
   AppPUsernameRoute: AppPUsernameRoute,
 }
 

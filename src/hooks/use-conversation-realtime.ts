@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { useTRPC } from "~/integrations/trpc/react";
 import {
+  localDb,
   markLocalMessageDeleted,
   stampWillExpireAt,
   updateConversationFromMessage,
@@ -11,19 +12,50 @@ import {
 import { getMessagePreview } from "~/lib/message-preview";
 import { pusherClient as pusher } from "~/lib/pusher-client";
 import { playSound } from "~/lib/sound-engine";
+import { getSystemPreview } from "~/lib/system-messages";
+import type { SystemMessageData } from "~/lib/system-messages";
 import { drop001Sound } from "~/sounds/drop-001";
+
+function isKickForCurrentUser(message: MessageEvent, currentUserId?: number) {
+  return (
+    currentUserId != null &&
+    message.kind === "system" &&
+    message.metadata?.type === "member_kicked" &&
+    message.metadata.targetId === currentUserId
+  );
+}
+
+async function removeLocalConversation(conversationId: number) {
+  await localDb.conversations.delete(conversationId);
+  await localDb.messages
+    .where("conversationId")
+    .equals(conversationId)
+    .delete();
+}
 
 export function useConversationRealtime(
   conversationId: number,
   currentUserId?: number,
   muteSounds = false,
+  onRemoved?: () => void,
 ) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   React.useEffect(() => {
     const channel = pusher.subscribe(`private-conversation-${conversationId}`);
 
-    channel.bind("message.created", (message: MessageEvent) => {
+    const onCreated = (message: MessageEvent) => {
+      if (isKickForCurrentUser(message, currentUserId)) {
+        void removeLocalConversation(conversationId);
+        void queryClient.invalidateQueries(
+          trpc.conversations.list.queryOptions(),
+        );
+        void queryClient.invalidateQueries(
+          trpc.conversations.details.queryOptions({ conversationId }),
+        );
+        onRemoved?.();
+        return;
+      }
       if (
         !muteSounds &&
         message.senderId !== currentUserId &&
@@ -48,9 +80,22 @@ export function useConversationRealtime(
       void queryClient.invalidateQueries(
         trpc.conversations.list.queryOptions(),
       );
-    });
+      if (message.kind === "system") {
+        if (
+          message.metadata?.type === "title_changed" &&
+          typeof message.metadata.newTitle === "string"
+        ) {
+          void localDb.conversations.update(conversationId, {
+            title: message.metadata.newTitle,
+          });
+        }
+        void queryClient.invalidateQueries(
+          trpc.conversations.details.queryOptions({ conversationId }),
+        );
+      }
+    };
 
-    channel.bind("message.deleted", (data: { id: number }) => {
+    const onDeleted = (data: { id: number }) => {
       void markLocalMessageDeleted(data.id);
       queryClient.setQueryData(
         trpc.conversations.messages.queryKey({ conversationId }),
@@ -66,14 +111,17 @@ export function useConversationRealtime(
       void queryClient.invalidateQueries(
         trpc.conversations.list.queryOptions(),
       );
-    });
+    };
+
+    channel.bind("message.created", onCreated);
+    channel.bind("message.deleted", onDeleted);
 
     return () => {
-      channel.unbind("message.created");
-      channel.unbind("message.deleted");
+      channel.unbind("message.created", onCreated);
+      channel.unbind("message.deleted", onDeleted);
       pusher.unsubscribe(`private-conversation-${conversationId}`);
     };
-  }, [conversationId, currentUserId, muteSounds, queryClient, trpc]);
+  }, [conversationId, currentUserId, muteSounds, onRemoved, queryClient, trpc]);
 }
 
 export function useConversationsRealtime(
@@ -89,7 +137,17 @@ export function useConversationsRealtime(
       const channel = pusher.subscribe(
         `private-conversation-${conversationId}`,
       );
-      channel.bind("message.created", (message: MessageEvent) => {
+      const onCreated = (message: MessageEvent) => {
+        if (isKickForCurrentUser(message, currentUserId)) {
+          void removeLocalConversation(conversationId);
+          void queryClient.invalidateQueries(
+            trpc.conversations.list.queryOptions(),
+          );
+          void queryClient.invalidateQueries(
+            trpc.conversations.details.queryOptions({ conversationId }),
+          );
+          return;
+        }
         if (
           !muteSounds &&
           conversationId !== currentConversationId &&
@@ -102,21 +160,42 @@ export function useConversationsRealtime(
           conversationId,
           createdAt: new Date(message.createdAt),
         };
+        if (
+          message.kind === "system" &&
+          message.metadata?.type === "title_changed" &&
+          typeof message.metadata.newTitle === "string"
+        ) {
+          void localDb.conversations.update(conversationId, {
+            title: message.metadata.newTitle,
+          });
+        }
+        const previewBody =
+          message.kind === "system" && message.metadata
+            ? (() => {
+                try {
+                  return getSystemPreview(
+                    message.metadata as unknown as SystemMessageData,
+                  );
+                } catch {
+                  return normalizedMessage.body;
+                }
+              })()
+            : getMessagePreview(
+                normalizedMessage.body,
+                normalizedMessage.attachments,
+              );
         void upsertMessages([stampWillExpireAt(normalizedMessage)]);
         void updateConversationFromMessage(
           conversationId,
           {
             ...normalizedMessage,
-            body: getMessagePreview(
-              normalizedMessage.body,
-              normalizedMessage.attachments,
-            ),
+            body: previewBody,
           },
           conversationId !== currentConversationId &&
             message.senderId !== currentUserId,
         );
-      });
-      channel.bind("message.deleted", (data: { id: number }) => {
+      };
+      const onDeleted = (data: { id: number }) => {
         void markLocalMessageDeleted(data.id);
         queryClient.setQueryData(
           trpc.conversations.messages.queryKey({ conversationId }),
@@ -132,13 +211,20 @@ export function useConversationsRealtime(
         void queryClient.invalidateQueries(
           trpc.conversations.list.queryOptions(),
         );
-      });
-      return { channel, conversationId };
+      };
+      channel.bind("message.created", onCreated);
+      channel.bind("message.deleted", onDeleted);
+      return { channel, conversationId, onCreated, onDeleted };
     });
     return () => {
-      for (const { channel, conversationId } of channels) {
-        channel.unbind("message.created");
-        channel.unbind("message.deleted");
+      for (const {
+        channel,
+        conversationId,
+        onCreated,
+        onDeleted,
+      } of channels) {
+        channel.unbind("message.created", onCreated);
+        channel.unbind("message.deleted", onDeleted);
         pusher.unsubscribe(`private-conversation-${conversationId}`);
       }
     };
@@ -155,7 +241,9 @@ export function useConversationsRealtime(
 type MessageEvent = {
   id: number;
   body: string;
-  senderId: number;
+  senderId: number | null;
+  kind?: "user" | "system";
+  metadata?: Record<string, unknown> | null;
   createdAt: string | Date;
   username: string | null;
   attachments: Array<{

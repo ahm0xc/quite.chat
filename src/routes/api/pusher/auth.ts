@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "~/db";
-import { conversationMembers, users } from "~/db/schema";
+import { conversationMembers, conversations, users } from "~/db/schema";
 import { pusherServer } from "~/lib/pusher-server";
 
 export const Route = createFileRoute("/api/pusher/auth")({
@@ -48,6 +48,13 @@ export const Route = createFileRoute("/api/pusher/auth")({
           return new Response("Bad request", { status: 400 });
         }
 
+        const convo = await db
+          .select({ deletedAt: conversations.deletedAt })
+          .from(conversations)
+          .where(eq(conversations.id, Number(conversationId)))
+          .limit(1);
+        if (convo[0]?.deletedAt)
+          return new Response("Forbidden", { status: 403 });
         const member = await db
           .select({ userId: conversationMembers.userId })
           .from(conversationMembers)
